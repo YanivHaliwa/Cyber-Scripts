@@ -1,0 +1,77 @@
+#!/usr/bin/env python3
+
+import os
+import sys
+import socket
+from scapy.all import *
+import threading
+import json
+import psutil
+
+def get_local_ip():
+    s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+    try:
+        s.connect(('10.255.255.255', 1))
+        IP = s.getsockname()[0]
+    except Exception:
+        IP = '127.0.0.1'
+    finally:
+        s.close()
+    return IP
+
+# Get the base IP by taking the first three octets of the IP address
+ip_address = get_local_ip()
+base_ip = ".".join(ip_address.split(".")[:-1])
+ip_range = base_ip + ".0/24"
+print(f"Scanning network range: {ip_range}")
+
+# Filter for only active interfaces
+interfaces = [iface for iface, stats in psutil.net_if_stats().items() if stats.isup]
+print(f"Active interfaces: {interfaces}")
+
+broadcastMac = "ff:ff:ff:ff:ff:ff"
+results = []
+
+# Function to perform ARP scan on an interface
+def scan_interface(interface):
+    print(f"Scanning on interface: {interface}")
+    try:
+        packet = scapy.layers.l2.Ether(dst=broadcastMac)/scapy.layers.l2.ARP(pdst=ip_range)
+        ans, unans = scapy.sendrecv.srp(packet, timeout=2, iface=interface, inter=0.1, verbose=False)
+        for send, receive in ans:
+            mac_addr = receive.sprintf(r'%Ether.src%')
+            ip_addr = receive.sprintf(r'%ARP.psrc%')
+            try:
+                hostname = socket.gethostbyaddr(ip_addr)[0]
+            except socket.herror:
+                hostname = "Unknown"
+            print(f"Interface: {interface} - {mac_addr} - {ip_addr} - Hostname: {hostname}")
+            results.append({
+                "interface": interface,
+                "mac_address": mac_addr,
+                "ip_address": ip_addr,
+                "hostname": hostname
+            })
+    except Exception as e:
+        print(f"Error on interface {interface}: {str(e)}")
+
+try:
+    # Using threading to scan interfaces simultaneously
+    threads = []
+    for interface in interfaces:
+        thread = threading.Thread(target=scan_interface, args=(interface,))
+        threads.append(thread)
+        thread.start()
+
+    # Wait for all threads to complete
+    for thread in threads:
+        thread.join()
+
+    # Save results to a JSON file
+    with open("scan_results.json", "w") as f:
+        json.dump(results, f, indent=4)
+    print("Scan results saved to scan_results.json")
+
+except KeyboardInterrupt:
+    print("\nScript interrupted by user. Exiting...")
+    sys.exit(0)
