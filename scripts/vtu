@@ -1,0 +1,65 @@
+#!/bin/bash
+
+# Ensure a URL is provided
+if [ -z "$1" ]; then
+    echo "Usage: $0 <URL>"
+    exit 1
+fi
+
+URL=$1
+
+
+
+# Scan the URL and extract the hash
+echo "Scanning URL..."
+scan_result=$(vt scan url "$URL")
+echo "Scan result: $scan_result"
+
+# Extract the hash from the scan result
+hash=$(echo "$scan_result" | awk -F' ' '{print $NF}')
+echo "Extracted HASH: $hash"
+
+
+# Initialize status variable and queue status flag
+status=""
+qu="False"
+
+# Function to perform analysis and check status
+perform_analysis() {
+    analysis_result=$(vt an "$hash")
+    # Extract status using grep
+    status=$(echo "$analysis_result" | grep -oP 'status: "\K[^"]+')
+}
+
+# Perform initial analysis
+echo "Performing initial analysis on extracted hash..."
+perform_analysis
+
+# Check status and wait until it is "completed"
+while [ "$status" != "completed" ]; do
+    if [ "$qu" = "False" ]; then
+        echo "Analysis is queued; waiting for completion..."
+        qu="True"  # Set qu to True after displaying the message once
+    fi
+    sleep 2
+    perform_analysis
+done
+
+
+echo "analysis result:"
+vt an "$hash" 
+
+echo ""
+# Run initial VirusTotal URL scan and get the analysis
+echo "Running VT URL ..."
+vt url "$URL"
+
+echo ""
+echo "url relationships analysis:"
+vt url relationships "$URL"
+
+echo ""
+echo "url netnetwork_location analysis:"
+vt url network_location "$URL"
+
+echo "Script completed."

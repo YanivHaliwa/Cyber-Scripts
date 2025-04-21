@@ -1,0 +1,24 @@
+#!/bin/bash
+
+# Check if the correct number of arguments is provided
+if [ "$#" -lt 1 ] || [ "$#" -gt 2 ]; then
+    echo "crack passwords from a zip file"
+    echo "Usage: $0 zip_file [wordlist]"
+    exit 1
+fi
+
+filez=$1
+wordlist=$2  #its an optional argument
+
+zip2john $filez > zip.hash
+
+if [ -n "$wordlist" ]; then
+    john --wordlist=$wordlist zip.hash --fork=32 --skip-self-test
+else
+    john zip.hash --fork=32 --skip-self-test
+fi
+
+echo ""
+echo "last cracked:"
+tail -n 2 $HOME/.john/john.pot
+ 

@@ -1,0 +1,231 @@
+#!/usr/bin/env python3
+
+import argparse
+import subprocess
+from colorama import Fore, Style, init
+import sys
+import os
+
+
+
+# Get the directory of the script
+script_dir = os.path.dirname(os.path.abspath(__file__))
+# Construct the path to hash_mode.txt
+type_file = os.path.join(script_dir, "hash_mode.txt")
+
+init()  # Initialize colorama to handle ANSI color codes on Windows and Unix
+ 
+
+def analyze_hash(hashfile):
+    try:
+        with open(hashfile, 'r') as file:
+            hash_value = file.read().strip()
+    except FileNotFoundError:
+        print("Hash file not found.")
+        return
+    except Exception as e:
+        print(f"Failed to read the hash file: {e}")
+        return
+
+    # Executing hashid
+    print(f"{Fore.GREEN}Output from hashid:{Style.RESET_ALL}")
+    hashid_command = ["hashid", hashfile]
+    hashid_output = subprocess.run(hashid_command, capture_output=True, text=True)
+    filtered_output = '\n'.join(line for line in hashid_output.stdout.split('\n') if "Analyzing" not in line and "--" not in line)
+    if filtered_output:
+        print(filtered_output)
+    else:
+        print("Could not find from hashid.")
+
+    # Executing Name That Hash
+    print("\n")
+    print(f"{Fore.BLUE}Most Likely hashes from nth:{Style.RESET_ALL}")
+    nth_command = ["nth", "-f", hashfile]
+    nth_output = subprocess.run(nth_command, capture_output=True, text=True)
+    start = nth_output.stdout.find("Most Likely")
+    end = nth_output.stdout.find("Least Likely")
+    if start != -1 and end != -1:
+        most_likely_section = nth_output.stdout[start:end].strip()
+        print(most_likely_section)
+    else:
+        print("Could not find from nth.")
+
+    # Executing hash-identifier
+    print("\n")
+    print(f"{Fore.YELLOW}Possible hashes from hash-identifier:{Style.RESET_ALL}")
+    hash_identifier_command = ["hash-identifier"]
+    process = subprocess.Popen(hash_identifier_command, stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
+
+    # Write to stdin and close it to signal EOF
+    output, errors = process.communicate(input=hash_value + '\n', timeout=1)
+
+    start = output.find("Possible Hashs:")
+    end = output.find("Least Possible Hashs:")
+    if start != -1 and end != -1:
+        possible_hashes_section = output[start:end].strip()
+        
+        print(possible_hashes_section)
+    else:
+        print("Could not find from hash-identifier.")
+    # If the process does not exit, kill it
+    if process.poll() is None:
+        process.kill()
+        # print("hash-identifier process was terminated.")
+
+    #excuting haiti
+    print("\n")
+    print(f"{Fore.CYAN}Possible hashes from haiti:{Style.RESET_ALL}")
+    haiti_command = ["haiti", hash_value]
+    haiti_output = subprocess.run(haiti_command, capture_output=True, text=True)
+    print(haiti_output.stdout)
+
+def choose_hash_type(filename, search_term):
+    choice = 0
+    matching_lines = []
+
+    # Define equivalencies for common hash names
+    hash_equivalents = {
+        "sha-256": "sha2-256",
+        "sha-512": "sha2-512",
+        "sha-384": "sha2-384",
+        "sha-1": "sha1",
+        "sha-224": "sha2-224",       
+    }
+
+    # Check if the search term has an equivalent and normalize it
+    normalized_search = hash_equivalents.get(search_term.lower(), search_term.lower()).replace('-', '')
+
+    try:
+        with open(filename, 'r') as file:
+            for line in file:
+                normalized_line = line.lower().replace('-', '')
+                if normalized_search in normalized_line:
+                    matching_lines.append(line.strip())
+    except FileNotFoundError:
+        print("The hash mode file was not found.")
+        return None
+
+    if not matching_lines:
+        return None
+    if len(matching_lines) == 1:
+        chosen_line = matching_lines[0]
+    else:
+        for i, line in enumerate(matching_lines):
+            print(f"{i + 1}. {line}")
+        choice = int(input(f"{Fore.YELLOW}Choose a hash type (1-{len(matching_lines)}): {Style.RESET_ALL}"))
+        chosen_line = matching_lines[choice - 1]
+
+    # Ensure chosen_line has the correct format with at least two parts
+    parts = chosen_line.split('|')
+    if len(parts) < 2:
+        print("Error: Chosen line format is incorrect in hash_mode.txt.")
+        return None
+
+    hash_type_code = parts[0].strip()
+    hash_type = parts[1].strip()
+    return hash_type_code, hash_type
+
+
+ 
+
+def get_hash(hashfile):
+    try:
+        with open(hashfile, 'r') as file:
+            return file.read().strip()
+    except FileNotFoundError:
+        print("Hash file not found.")
+        return None
+
+def htj(hashcat_mode):
+    hashcat_to_john = {
+    '0': 'raw-md5',                  # MD5 (Raw Hash)
+    '100': 'raw-sha1',               # SHA-1 (Raw Hash)
+    '131': 'mssql',                  # MSSQL (2000)
+    '300': 'mysql-sha1',             # MySQL 4.1/MySQL 5 (Raw Hash)
+    '400': 'phpass',                 # phpass (WordPress, Joomla, phpBB3) (Generic KDF)
+    '500': 'md5crypt',               # md5crypt, MD5 (Unix), Cisco-IOS $1$ (MD5) (Operating System)
+    '900': 'raw-md4',                # MD4 (Raw Hash)
+    '1000': 'nt',                    # NTLM (Operating System)
+    '1100': 'mscach',                # Domain Cached Credentials (DCC), MS Cache (Operating System)
+    '1400': 'raw-sha256',            # SHA-256 (Raw Hash)
+    '1700': 'raw-sha512',            # SHA-512 (Raw Hash)
+    '1800': 'sha512crypt',           # sha512crypt, SHA512 (Unix) (Operating System)
+    '2100': 'mscash2',               # Domain Cached Credentials 2 (DCC2), MS Cache 2 (Operating System)
+    '3200': 'bcrypt',                # bcrypt $2*$, Blowfish (Unix) (Operating System)
+    '1500': 'descrypt',              # DES (Unix), Traditional DES (Operating System)
+    '16800': 'wpapmkid',             # WPA-PMKID-PBKDF2 (Network Protocol)
+    '3000': 'lm',                    # LM hashes (Operating System)
+    '13400': 'keepass',              # KeePass 1 (AES/Twofish) and KeePass 2 (AES) (Password Manager)
+    '9900': 'racf',                  # RACF (Operating System)
+    '12': 'postgres',                # PostgreSQL (Database Server)
+    '6100': 'whirlpool',             # Whirlpool (Raw Hash)
+    '10900': 'pbkdf2-hmac-sha256',   # PBKDF2-HMAC-SHA256 (Generic KDF)
+    '12100': 'pbkdf2-hmac-sha512',   # PBKDF2-HMAC-SHA512 (Generic KDF)
+    '12000': 'pbkdf2-hmac-sha1',     # PBKDF2-HMAC-SHA1 (Generic KDF)
+    '23100': 'keychain',             # Apple Keychain (Password Manager)
+    '19600': 'krb5tgs',              # Kerberos 5, etype 17, TGS-REP (Network Protocol)
+    '19800': 'krb5pa-sha1',          # Kerberos 5, etype 17, Pre-Auth (Network Protocol)
+    '19700': 'krb5tgs',              # Kerberos 5, etype 18, TGS-REP (Network Protocol)
+    '19900': 'krb5pa-sha1',          # Kerberos 5, etype 18, Pre-Auth (Network Protocol)
+    '7500': 'krb5pa-md5',            # Kerberos 5, etype 23, AS-REQ Pre-Auth (Network Protocol)
+    '13100': 'krb5tgs',              # Kerberos 5, etype 23, TGS-REP (Network Protocol)
+    '18200': 'krb5asrep',            # Kerberos 5, etype 23, AS-REP (Network Protocol)
+     '1750': 'hmac-sha512-$pass',        # HMAC-SHA512 (key = $pass)
+    '1760': 'hmac-sha512-$salt',        # HMAC-SHA512 (key = $salt)
+    '1770': 'sha512-utf16le',           # SHA-512 with UTF-16LE encoding
+    '2400': 'cisco-pix-md5',            # Cisco PIX firewall passwords
+    '2410': 'cisco-asa-md5',            # Cisco ASA firewall passwords
+    '2500': 'wpa-eapol-pbkdf2',         # WPA/WPA2 PBKDF2 (Wi-Fi Protected Access)
+    '2501': 'wpa-eapol-pmk',            # WPA/WPA2 PMKID
+    '2600': 'md5md5',                   # Double MD5
+    '3100': 'oracle-h',                 # Oracle 7+ database passwords
+    '3730': 'dahua',                    # Dahua DVR/NVR password hash
+}
+    return hashcat_to_john.get(hashcat_mode, "Unknown")
+ 
+
+def main():
+    # parser = argparse.ArgumentParser(description="This is a script for hashcat operations.\n\nChoose one of the following options:")
+    parser = argparse.ArgumentParser(description="This is a script for hashcat operations.\nChoose one of the following", formatter_class=argparse.RawTextHelpFormatter)
+    parser.add_argument("-f", "--hashfile", help="Path to the hash file", required=False)
+    parser.add_argument("-t", "--hashtype", help="Optional hash type or part of it for searching", required=False)
+    args = parser.parse_args()
+
+    if not args.hashfile and not args.hashtype:
+        print("Please provide a hash file or hash type.\n")
+        parser.print_help()
+        sys.exit(1)
+    try:
+        hash_type_code = hash_type = None
+        if args.hashtype:
+            result = choose_hash_type(type_file, args.hashtype)
+            if not result:
+                sys.exit(1)
+            hash_type_code, hash_type = result
+        elif args.hashfile:
+            analyze_hash(args.hashfile)
+            user_input = input(f"{Fore.CYAN}Enter the hash type name or part of it / or HC code: {Style.RESET_ALL}")
+            result = choose_hash_type(type_file, user_input)
+            if not result:
+                sys.exit(1)
+            hash_type_code, hash_type = result
+
+        if args.hashfile:
+            hash_value = get_hash(args.hashfile)
+            if hash_value:
+                print(f"{Fore.MAGENTA}\nHash Value: {hash_value}{Style.RESET_ALL}")
+        else:
+            print(f"{Fore.MAGENTA}\nNo hash file provided. Displaying hash type information:{Style.RESET_ALL}")
+
+        if hash_type_code and hash_type:
+            print(f"{Fore.MAGENTA}Hash Mode: {hash_type}{Style.RESET_ALL}")
+            print(f"{Fore.MAGENTA}Hashcat Code: {hash_type_code}{Style.RESET_ALL}")
+            john_format = htj(hash_type_code)
+            print(f"{Fore.MAGENTA}John the Ripper Format: {john_format}{Style.RESET_ALL}")
+
+    except KeyboardInterrupt:
+        print("\nbye..")
+        sys.exit(1)
+
+if __name__ == "__main__":
+    main()

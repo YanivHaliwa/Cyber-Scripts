@@ -1,0 +1,72 @@
+#!/usr/bin/env python3
+
+import os
+import sys
+import time  
+import requests
+from urllib.parse import urljoin
+from concurrent.futures import ThreadPoolExecutor
+
+# Global flag to check if we should exit early
+should_exit = False
+
+def fetch_gtfobins_status(binary):
+    global should_exit
+    if should_exit:
+        return False
+    print ("checking Binary: ", binary)
+    base_url = "https://gtfobins.github.io/gtfobins/"
+    full_url = urljoin(base_url, binary)
+    try:
+        response = requests.get(full_url, timeout=5)
+        if response.status_code == 200:
+            if '404' not in response.text:
+                return True
+    except Exception as e:
+        pass
+    time.sleep(1)   
+    return False
+
+def extract_binary(path):
+    return path.split('/')[-1]
+
+try:
+    def main():
+        global should_exit
+        if len(sys.argv) < 2:
+            print("Usage: python script.py <file_path>")
+            return
+        file_path = sys.argv[1]
+        try:
+            with open(file_path, 'r') as f:
+                file_content = f.read()
+        except FileNotFoundError:
+            print(f"File {file_path} not found.")
+            return
+        except Exception as e:
+            print(f"An error occurred while reading the file")
+            return
+
+        extracted_binaries = [extract_binary(line) for line in file_content.strip().split('\n')]
+        unique_binaries = list(set(extracted_binaries))
+
+        vulnerable_binaries = []
+        with ThreadPoolExecutor(max_workers=20) as executor:
+            results = executor.map(fetch_gtfobins_status, unique_binaries)
+
+        for binary, is_vulnerable in zip(unique_binaries, results):
+            if is_vulnerable:
+                vulnerable_binaries.append(binary)
+
+        print("\n\nVulnerable binaries according to GTFOBins:")
+        if vulnerable_binaries:
+            for binary in vulnerable_binaries:
+                print(binary)
+        else:
+            print("Nothing")
+
+    main()
+except KeyboardInterrupt:
+    print("\rExiting...")
+    should_exit = True
+    sys.exit(0)

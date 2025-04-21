@@ -1,0 +1,24 @@
+#!/bin/bash
+
+# Check if the correct number of arguments is provided
+if [ "$#" -lt 1 ] || [ "$#" -gt 2 ]; then
+    echo "crack passwords from a ssh key id_rsa"
+    echo "Usage: $0 id_rsa [wordlist]"
+    exit 1
+fi
+
+filez=$1
+wordlist=$2  #its an optional argument
+
+ssh2john $filez > ssh.hash
+
+if [ -n "$wordlist" ]; then
+    john --wordlist=$wordlist ssh.hash --fork=32 --skip-self-test
+else
+    john ssh.hash --fork=32 --skip-self-test
+fi
+
+echo ""
+echo "last cracked:"
+tail -n 2 $HOME/.john/john.pot
+ 
