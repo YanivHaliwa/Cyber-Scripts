@@ -1,2 +1,3 @@
-wifi_success.log
 .gitignore
+wifi_success.log 
+.cache_ggshield
