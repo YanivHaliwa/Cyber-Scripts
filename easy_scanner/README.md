@@ -139,3 +139,7 @@ This tool is intended for authorized security testing only. Always ensure you ha
 ## Legal Disclaimer
 
 This tool is provided for educational and professional security testing purposes only. The developers are not responsible for any misuse or damage caused by this program. Always ensure you have proper authorization before scanning any systems.
+
+## Author
+
+Created by [Yaniv Haliwa](https://github.com/YanivHaliwa) for security testing and educational purposes.

@@ -87,3 +87,7 @@ Contributions are welcome! Feel free to submit pull requests with improvements o
 ## Disclaimer
 
 The authors of this tool are not responsible for any misuse or damage caused by this program. Users are solely responsible for ensuring they comply with all applicable laws and regulations.
+
+## Author
+
+Created by [Yaniv Haliwa](https://github.com/YanivHaliwa) for security testing and educational purposes.

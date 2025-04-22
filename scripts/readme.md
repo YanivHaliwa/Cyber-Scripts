@@ -21,3 +21,7 @@
 - **vtf**: A Bash script for scanning files using VirusTotal's API.
 - **vtu**: A Bash script for scanning URLs using VirusTotal's API.
 - **webscan_sub**: Scans websites for subdomains and folders visible in HTML code using BeautifulSoup.
+
+## Author
+
+Created by [Yaniv Haliwa](https://github.com/YanivHaliwa) for security testing and educational purposes.

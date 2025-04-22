@@ -37,5 +37,9 @@ Run the `device_f`
 
 Ensure you have the necessary permissions to perform network scans on your system.
 
+## Author
+
+Created by [Yaniv Haliwa](https://github.com/YanivHaliwa) for security testing and educational purposes.
+
 
 

@@ -1,0 +1,21 @@
+{
+    "wordlist": "/usr/share/wordlists/dirbuster/directory-list-2.3-medium.txt",
+    "mode": "dir",
+    "threads": "30",
+    "status_code_show": "",
+    "status_code_avoid": "",
+    "extensions": "",
+    "cname": false,
+    "exclude_length": "",
+    "_comments": {
+        "general": "Configuration file for gobuster automation script",
+        "wordlist": "Path to the wordlist file to use for scanning",
+        "mode": "Scan mode - either 'dir' for directory scans or 'dns' for DNS enumeration",
+        "threads": "Number of concurrent threads for scanning",
+        "status_code_show": "HTTP status codes to display in results",
+        "status_code_avoid": "HTTP status codes to hide from results",
+        "extensions": "File extensions to scan for or path to file containing extensions",
+        "cname": "Whether to include CNAME records in DNS mode (true/false)",
+        "exclude_length": "Response lengths to exclude from results"
+    }
+}

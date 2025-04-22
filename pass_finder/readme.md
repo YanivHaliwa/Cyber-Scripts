@@ -46,5 +46,10 @@ passf <target_folder> [options]
   "exclude_dirs": [".git", "node_modules"],
   "exclude_files": ["*.log", "*.tmp"]
 }
+```
+
+## Author
+
+Created by [Yaniv Haliwa](https://github.com/YanivHaliwa) for security testing and educational purposes.
 
  

@@ -1,0 +1,396 @@
+#!/usr/bin/env python3
+
+import argparse
+import subprocess
+import json
+import sys
+import os
+import re
+import shutil
+
+# Constants
+CONFIG_FILENAME = 'config.json'
+TEMPLATE_FILENAME = 'template_config.json'
+DEFAULT_THREADS = "60"
+DEFAULT_STATUS_CODES = "200,301,302,403,401,500"
+DEFAULT_EXTENSIONS = "html,php,asp,aspx,jsp,jspx,bak,old,txt,cfg,conf,log,js,css,json,xml,py,sh,sql,sqlite,db,env"
+
+def get_config_path():
+    """Get the absolute path to the configuration file."""
+    return os.path.join(os.path.dirname(os.path.abspath(__file__)), CONFIG_FILENAME)
+
+def validate_url(url):
+    """Validate URL format."""
+    if not url:
+        return False
+    # Simple URL validation: must start with http:// or https://
+    if not re.match(r'^https?://', url):
+        print("Error: URL must start with http:// or https://")
+        return False
+    return True
+
+def load_json_file(filepath):
+    """Load JSON from a file with error handling."""
+    try:
+        with open(filepath, 'r') as f:
+            return json.load(f)
+    except FileNotFoundError:
+        return None
+    except json.JSONDecodeError:
+        print(f"Error: File {filepath} contains invalid JSON.")
+        return None
+    except (PermissionError, IOError) as e:
+        print(f"Error reading file {filepath}: {e}")
+        return None
+
+def save_json_file(filepath, data):
+    """Save JSON to a file with error handling."""
+    try:
+        with open(filepath, 'w') as f:
+            json.dump(data, f, indent=4)
+        return True
+    except (PermissionError, IOError) as e:
+        print(f"Error writing to file {filepath}: {e}")
+        return False
+
+def save_user_input(data):
+    """Save user inputs to a JSON file for reuse."""
+    config_path = get_config_path()
+    
+    # Check if there are existing comments in the JSON file
+    existing_comments = {}
+    existing_json = load_json_file(config_path)
+    if existing_json and "_comments" in existing_json:
+        existing_comments = existing_json["_comments"]
+    
+    # Add the comments back to the data
+    data["_comments"] = existing_comments
+    
+    return save_json_file(config_path, data)
+
+def load_user_input():
+    """Load saved user inputs from a JSON file."""
+    config_path = get_config_path()
+    data = load_json_file(config_path)
+    
+    if not data:
+        print(f"Configuration file not found or invalid. Please run with -e to create one.")
+        return None
+        
+    # Remove the comments field if it exists to avoid it being used as a parameter
+    if "_comments" in data:
+        data.pop("_comments")
+        
+    return data
+
+def get_user_input(args):
+    """Prompt the user for input, falling back to saved data or provided arguments."""
+    if args.json_file:    
+        saved_data = load_user_input()
+        if not saved_data:
+            print(f"Failed to load configuration. Please check {CONFIG_FILENAME} exists.")
+            sys.exit(1)
+        
+        if not args.url:
+            print("URL is required when using saved settings.")
+            sys.exit(1)
+            
+        saved_data['url'] = args.url
+        print("Using json file for configuration")
+        return saved_data
+        
+    try:
+        # Get mode with validation
+        mode = input("Enter mode (dns/dir, default is dir): ").strip().lower() or "dir"
+        if mode not in ["dns", "dir"]:
+            print(f"Invalid mode: {mode}. Defaulting to 'dir'.")
+            mode = "dir"
+            
+        # Get other parameters
+        threads = input("Threads (leave blank for default): ").strip()
+        status_code_show = input("Enter status codes to show (leave blank for default): ").strip()
+        status_code_avoid = input("Enter status codes to avoid (leave blank for default): ").strip()
+        exclude_length = input("Enter response lengths to exclude (comma-separated, leave blank for none): ").strip()
+        
+        # Mode-specific parameters
+        if mode == "dir":
+            extensions = input("Extensions to search (comma-separated, leave blank for default): ").strip()
+            cname = False
+        else:  # DNS mode
+            extensions = ""
+            cname = input("Include CNAME records? (y/n): ").strip().lower() == 'y'
+
+        # Validate required parameters
+        if not args.url:
+            print("URL is required.")
+            sys.exit(1)
+            
+        if not args.wordlist:
+            print("Wordlist is required.")
+            sys.exit(1)
+            
+        # Create user data dictionary
+        user_data = {
+            'url': args.url,
+            'wordlist': args.wordlist,
+            'mode': mode,
+            'threads': threads,
+            'status_code_show': status_code_show,
+            'status_code_avoid': status_code_avoid,
+            'extensions': extensions,
+            'cname': cname,
+            'exclude_length': exclude_length
+        }
+        
+        # Save configuration without URL for security
+        config_data = {
+            'wordlist': args.wordlist,
+            'mode': mode,
+            'threads': threads,
+            'status_code_show': status_code_show,
+            'status_code_avoid': status_code_avoid,
+            'extensions': extensions,
+            'cname': cname,
+            'exclude_length': exclude_length
+        }
+        save_user_input(config_data)
+        
+    except KeyboardInterrupt:
+        print("\nOperation cancelled by user.")
+        sys.exit(0)
+        
+    return user_data
+
+def read_file_as_csv(file_path):
+    """Read a file and return its contents as comma-separated values."""
+    try:
+        with open(file_path, 'r') as f:
+            return ','.join([line.strip() for line in f if line.strip()])
+    except (FileNotFoundError, PermissionError) as e:
+        print(f"Error reading file {file_path}: {e}")
+        return None
+
+def build_command(user_data):
+    """Construct the Gobuster command based on user input."""
+    command = ["gobuster"]
+  
+    # Add mode
+    command.append(user_data['mode'])
+    
+    # Validate and add URL
+    if user_data['url'] and validate_url(user_data['url']):
+        command.extend(["-u", user_data['url']])
+    else:
+        print("URL is required and must be valid (http:// or https://).")
+        sys.exit(1)
+    
+    # Validate and add wordlist
+    if user_data['wordlist']:
+        wordlist_path = os.path.expanduser(user_data['wordlist'])
+        if not os.path.exists(wordlist_path):
+            print(f"Error: Wordlist file not found at {wordlist_path}")
+            sys.exit(1)
+        command.extend(["-w", wordlist_path])
+    else:
+        print("Wordlist is required.")
+        sys.exit(1)
+                        
+    # Add threads parameter
+    if user_data['threads']:
+        try:
+            threads = int(user_data['threads'])
+            if threads < 1:
+                print(f"Invalid thread count. Defaulting to {DEFAULT_THREADS}.")
+                command.extend(["-t", DEFAULT_THREADS])
+            else:
+                command.extend(["-t", str(threads)])
+        except ValueError:
+            print(f"Invalid thread count. Defaulting to {DEFAULT_THREADS}.")
+            command.extend(["-t", DEFAULT_THREADS])
+    else:
+        command.extend(["-t", DEFAULT_THREADS])
+         
+    # Handle extensions for dir mode
+    if user_data['mode'] == "dir":
+        if user_data['extensions']:
+            extensions = user_data['extensions']
+            # Check if it's a file path
+            if '.' in extensions and not ',' in extensions:
+                extensions_path = os.path.expanduser(extensions)
+                if os.path.exists(extensions_path) and os.path.isfile(extensions_path):
+                    file_content = read_file_as_csv(extensions_path)
+                    if file_content:
+                        extensions = file_content
+                    else:
+                        print("Using default extensions...")
+                        extensions = DEFAULT_EXTENSIONS
+                else:
+                    print(f"Extensions file not found: {extensions_path}")
+                    print("Using default extensions...")
+                    extensions = DEFAULT_EXTENSIONS
+            command.extend(["-x", extensions])
+        else:
+            command.extend(["-x", DEFAULT_EXTENSIONS])
+
+    # Handle status codes
+    if user_data['status_code_show']:
+        command.extend(["-s", user_data['status_code_show']])
+        command.extend(["-b", ""])  
+    elif user_data['status_code_avoid']:
+        command.extend(["-b", user_data['status_code_avoid']])
+    else:
+        command.extend(["-s", DEFAULT_STATUS_CODES])
+        command.extend(["-b", ""]) 
+
+    # Handle exclude_length
+    if user_data.get('exclude_length'):
+        exclude_length = user_data['exclude_length']
+        # Check if it's a file path
+        if os.path.exists(exclude_length) and os.path.isfile(exclude_length):
+            file_content = read_file_as_csv(exclude_length)
+            if file_content:
+                exclude_length = file_content
+        
+        command.extend(["--exclude-length", exclude_length])
+
+    # Handle CNAME for DNS mode
+    if user_data.get('cname') and user_data['mode'] == "dns":
+        command.append("-c")
+    
+    # Always show expanded mode
+    command.append("-e")
+
+    return command
+
+def get_editor():
+    """Get the user's preferred editor."""
+    # Try to get the editor from environment variables
+    editor = os.getenv("EDITOR")
+    if not editor:
+        # Check common editors
+        editors = ["nano", "vim", "vi", "emacs", "gedit", "notepad", "subl"]
+        for ed in editors:
+            if shutil.which(ed):
+                editor = ed
+                break
+    
+    # If no editor found, default to nano which is commonly available
+    if not editor:
+        print("No editor found. Defaulting to nano.")
+        editor = "nano"
+    
+    return editor
+
+def create_default_config():
+    """Create a default configuration file."""
+    config = {
+        "_comments": {
+            "general": "Configuration file for gobuster automation script",
+            "wordlist": "Path to the wordlist file to use for scanning",
+            "mode": "Scan mode - either 'dir' for directory scans or 'dns' for DNS enumeration",
+            "threads": "Number of concurrent threads for scanning",
+            "status_code_show": "HTTP status codes to display in results",
+            "status_code_avoid": "HTTP status codes to hide from results",
+            "extensions": "File extensions to scan for or path to file containing extensions",
+            "cname": "Whether to include CNAME records in DNS mode",
+            "exclude_length": "Response lengths to exclude from results"
+        }
+    }
+    return config
+
+def setup_from_template():
+    """Setup configuration file from template."""
+    template_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), TEMPLATE_FILENAME)
+    config_path = get_config_path()
+    
+    if os.path.exists(template_path):
+        try:
+            shutil.copy(template_path, config_path)
+            print(f"Configuration file created: {config_path}")
+            print("You can now edit it with: ./gob -e")
+            return True
+        except (PermissionError, IOError) as e:
+            print(f"Error creating configuration: {e}")
+            return False
+    else:
+        print(f"Template configuration file not found. Please ensure {TEMPLATE_FILENAME} exists.")
+        return False
+
+def edit_config():
+    """Open the configuration file in an editor."""
+    config_path = get_config_path()
+    
+    # Create the file if it doesn't exist
+    if not os.path.exists(config_path):
+        print("Configuration file does not exist. Creating a blank file...")
+        if not save_json_file(config_path, create_default_config()):
+            return False
+
+    # Get the user's preferred editor
+    editor = get_editor()
+    
+    # Prepare the editor command
+    editor_command = editor.split()
+    editor_command.append(config_path)
+    print(f"Using editor: {' '.join(editor_command)}")
+    
+    # Run the editor
+    try:
+        subprocess.run(editor_command)
+        return True
+    except FileNotFoundError:
+        print(f"Error: Could not open editor '{editor}'. Please set the EDITOR environment variable.")
+        return False
+    except subprocess.SubprocessError as e:
+        print(f"Error opening editor: {e}")
+        return False
+
+def main():
+    """Main function to run the Gobuster automation script."""
+    # Parse command-line arguments
+    parser = argparse.ArgumentParser(description="Gobuster automation script")
+    parser.add_argument("-u", "--url", required=False, help="Target URL")
+    parser.add_argument("-w", "--wordlist", required=False, help="Path to wordlist")
+    parser.add_argument("-e", "--edit", action="store_true", help="Open the configuration file with the default editor")
+    parser.add_argument("-j", "--json-file", action="store_true", help="Load configuration from file")
+    parser.add_argument("--setup", action="store_true", help="Create initial configuration from template")
+
+    args = parser.parse_args()
+
+    # Handle setup option
+    if args.setup:
+        if setup_from_template():
+            return 0
+        return 1
+
+    # Handle edit option
+    if args.edit:
+        if edit_config():
+            return 0
+        return 1
+
+    # Get user input or saved data
+    user_data = get_user_input(args)
+
+    # Build and execute the command
+    command = build_command(user_data)
+    print("Running command:")
+    print(" ".join(command))
+    
+    # Execute the command
+    try:
+        result = subprocess.run(command, check=True)
+        return result.returncode
+    except subprocess.CalledProcessError as e:
+        print(f"Gobuster finished with errors (exit code {e.returncode})")
+        return e.returncode
+    except KeyboardInterrupt:
+        print("\nOperation cancelled by user.")
+        return 130  # Standard exit code for SIGINT
+    except FileNotFoundError:
+        print("Error: Gobuster command not found. Please ensure it's installed and in your PATH.")
+        return 127  # Standard exit code for command not found
+
+
+if __name__ == "__main__":
+    sys.exit(main())
