@@ -1,0 +1,4 @@
+#!/bin/bash
+
+pyuic6 appui.ui -o appui.py
+python3 main.py 2>/dev/null

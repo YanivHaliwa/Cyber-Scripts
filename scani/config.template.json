@@ -1,0 +1,40 @@
+{
+    "output_dir": "reports",
+    "gobuster": {
+        "timeout": 60,
+        "wordlist": "/usr/share/dirbuster/wordlists/directory-list-2.3-medium.txt",
+        "extensions": "html,php,txt,js,rar,zip,asp,jsp,sql,xml,json,config,bak,cgi,log",
+        "tags": [""],
+        "comment": "Timeout in seconds, specify path to wordlist. Add custom gobuster tags in the tags array"
+    },
+    "dirsearch": {
+        "extensions": "html,php,txt,js,rar,zip,asp,jsp,sql,xml,json,config,bak,cgi,log",
+        "timeout": 120,
+        "wordlist": "/usr/share/dirbuster/wordlists/directory-list-2.3-medium.txt",
+        "comment": "File extensions to search for"
+    },
+    "nikto": {
+        "timeout": 60,
+        "comment": "Timeout in seconds"
+    },
+    "nmap": {
+        "tags": [""],
+        "timeout": 600,
+        "comment": "Additional flags for nmap scans, timeout in seconds"
+    },
+    "sqlmap": {
+        "options": ["--batch", "--level=5", "--risk=3", "--threads=10"],
+        "timeout": 50,
+        "comment": "Default sqlmap options - be careful with more aggressive options. Timeout in seconds"
+    },
+    "enum4linux": {
+        "timeout": 600,
+        "options": ["-a"],
+        "comment": "Default is -a (all simple enumeration). Other useful options: -U (users), -S (shares), -P (password policy)"
+    },
+    "wpscan": {
+        "timeout": 600,
+        "options": ["--enumerate", "vp,vt,u,cb,m"],
+        "comment": "Default enumeration options: vp (vulnerable plugins), vt (vulnerable themes), u (users), cb (config backups), m (media)"
+    }
+}

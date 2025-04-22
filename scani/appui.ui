@@ -1,0 +1,836 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<ui version="4.0">
+ <class>MainWindow</class>
+ <widget class="QMainWindow" name="MainWindow">
+  <property name="windowModality">
+   <enum>Qt::ApplicationModal</enum>
+  </property>
+  <property name="geometry">
+   <rect>
+    <x>0</x>
+    <y>0</y>
+    <width>1674</width>
+    <height>959</height>
+   </rect>
+  </property>
+  <property name="sizePolicy">
+   <sizepolicy hsizetype="Preferred" vsizetype="Preferred">
+    <horstretch>0</horstretch>
+    <verstretch>0</verstretch>
+   </sizepolicy>
+  </property>
+  <property name="maximumSize">
+   <size>
+    <width>16777200</width>
+    <height>16777200</height>
+   </size>
+  </property>
+  <property name="windowTitle">
+   <string>EasyScanner</string>
+  </property>
+  <property name="styleSheet">
+   <string notr="true">QWidget {
+    background-color: #353535;
+    color: #FFFFFF;
+}
+QPushButton {
+    background-color: #505050;
+    color: #FFFFFF;
+    border: 1px solid #5E5E5E;
+    padding: 5px;
+}
+QLineEdit {
+    background-color: #1E1E1E;
+    color: #FFFFFF;
+    border: 1px solid #5E5E5E;
+}
+QTableView {
+    selection-background-color: #606060;
+    selection-color: #FFFFFF;
+    alternate-background-color: #404040;
+    gridline-color: #404040;
+}
+QHeaderView::section {
+    background-color: #505050;
+    color: #FFFFFF;
+}
+</string>
+  </property>
+  <widget class="QWidget" name="centralwidget">
+   <widget class="QLineEdit" name="ipf">
+    <property name="geometry">
+     <rect>
+      <x>22</x>
+      <y>50</y>
+      <width>181</width>
+      <height>31</height>
+     </rect>
+    </property>
+   </widget>
+   <widget class="QPushButton" name="run_nmap">
+    <property name="geometry">
+     <rect>
+      <x>673</x>
+      <y>8</y>
+      <width>100</width>
+      <height>45</height>
+     </rect>
+    </property>
+    <property name="maximumSize">
+     <size>
+      <width>16777215</width>
+      <height>16777215</height>
+     </size>
+    </property>
+    <property name="font">
+     <font>
+      <pointsize>10</pointsize>
+      <italic>false</italic>
+      <bold>true</bold>
+      <kerning>true</kerning>
+     </font>
+    </property>
+    <property name="focusPolicy">
+     <enum>Qt::StrongFocus</enum>
+    </property>
+    <property name="styleSheet">
+     <string notr="true">background-color: rgb(118, 64, 140);</string>
+    </property>
+    <property name="text">
+     <string>NMAP</string>
+    </property>
+    <property name="default">
+     <bool>false</bool>
+    </property>
+   </widget>
+   <widget class="QLineEdit" name="portf">
+    <property name="geometry">
+     <rect>
+      <x>212</x>
+      <y>50</y>
+      <width>261</width>
+      <height>31</height>
+     </rect>
+    </property>
+   </widget>
+   <widget class="QLabel" name="label_3">
+    <property name="geometry">
+     <rect>
+      <x>23</x>
+      <y>20</y>
+      <width>111</width>
+      <height>20</height>
+     </rect>
+    </property>
+    <property name="font">
+     <font>
+      <pointsize>14</pointsize>
+     </font>
+    </property>
+    <property name="text">
+     <string>IP/domain:</string>
+    </property>
+   </widget>
+   <widget class="QLabel" name="label_4">
+    <property name="geometry">
+     <rect>
+      <x>213</x>
+      <y>20</y>
+      <width>51</width>
+      <height>20</height>
+     </rect>
+    </property>
+    <property name="font">
+     <font>
+      <pointsize>14</pointsize>
+     </font>
+    </property>
+    <property name="text">
+     <string>Ports:</string>
+    </property>
+   </widget>
+   <widget class="QTextEdit" name="textEdit">
+    <property name="geometry">
+     <rect>
+      <x>1030</x>
+      <y>151</y>
+      <width>631</width>
+      <height>821</height>
+     </rect>
+    </property>
+    <property name="styleSheet">
+     <string notr="true">background-color: rgb(255, 255, 255);
+color: rgb(0, 0, 0);
+ 
+font: 25pt &quot;Cantarell&quot;;</string>
+    </property>
+    <property name="lineWidth">
+     <number>1</number>
+    </property>
+    <property name="sizeAdjustPolicy">
+     <enum>QAbstractScrollArea::AdjustToContents</enum>
+    </property>
+    <property name="readOnly">
+     <bool>false</bool>
+    </property>
+   </widget>
+   <widget class="QCheckBox" name="allports">
+    <property name="geometry">
+     <rect>
+      <x>482</x>
+      <y>40</y>
+      <width>141</width>
+      <height>41</height>
+     </rect>
+    </property>
+    <property name="sizePolicy">
+     <sizepolicy hsizetype="Expanding" vsizetype="Maximum">
+      <horstretch>40</horstretch>
+      <verstretch>40</verstretch>
+     </sizepolicy>
+    </property>
+    <property name="sizeIncrement">
+     <size>
+      <width>30</width>
+      <height>30</height>
+     </size>
+    </property>
+    <property name="baseSize">
+     <size>
+      <width>30</width>
+      <height>30</height>
+     </size>
+    </property>
+    <property name="font">
+     <font>
+      <pointsize>20</pointsize>
+     </font>
+    </property>
+    <property name="styleSheet">
+     <string notr="true">QCheckBox::indicator {
+    width: 25px;
+    height: 25px;
+}
+</string>
+    </property>
+    <property name="text">
+     <string>All Ports</string>
+    </property>
+    <property name="iconSize">
+     <size>
+      <width>40</width>
+      <height>40</height>
+     </size>
+    </property>
+    <property name="autoExclusive">
+     <bool>true</bool>
+    </property>
+   </widget>
+   <widget class="QPushButton" name="quit">
+    <property name="geometry">
+     <rect>
+      <x>1322</x>
+      <y>5</y>
+      <width>171</width>
+      <height>59</height>
+     </rect>
+    </property>
+    <property name="font">
+     <font>
+      <pointsize>13</pointsize>
+      <bold>true</bold>
+     </font>
+    </property>
+    <property name="styleSheet">
+     <string notr="true"/>
+    </property>
+    <property name="text">
+     <string>QUIT</string>
+    </property>
+    <property name="default">
+     <bool>true</bool>
+    </property>
+   </widget>
+   <widget class="QPushButton" name="clean_all">
+    <property name="geometry">
+     <rect>
+      <x>1500</x>
+      <y>73</y>
+      <width>161</width>
+      <height>59</height>
+     </rect>
+    </property>
+    <property name="font">
+     <font>
+      <pointsize>13</pointsize>
+      <bold>true</bold>
+     </font>
+    </property>
+    <property name="styleSheet">
+     <string notr="true"/>
+    </property>
+    <property name="text">
+     <string>Clean All</string>
+    </property>
+    <property name="default">
+     <bool>true</bool>
+    </property>
+   </widget>
+   <widget class="QPushButton" name="clean_notes">
+    <property name="geometry">
+     <rect>
+      <x>1499</x>
+      <y>6</y>
+      <width>161</width>
+      <height>57</height>
+     </rect>
+    </property>
+    <property name="font">
+     <font>
+      <pointsize>13</pointsize>
+      <bold>true</bold>
+     </font>
+    </property>
+    <property name="styleSheet">
+     <string notr="true"/>
+    </property>
+    <property name="text">
+     <string>clear logs</string>
+    </property>
+    <property name="default">
+     <bool>true</bool>
+    </property>
+   </widget>
+   <widget class="QLabel" name="running">
+    <property name="geometry">
+     <rect>
+      <x>220</x>
+      <y>100</y>
+      <width>431</width>
+      <height>31</height>
+     </rect>
+    </property>
+    <property name="font">
+     <font>
+      <family>Classic Console</family>
+      <pointsize>20</pointsize>
+      <italic>true</italic>
+      <bold>false</bold>
+     </font>
+    </property>
+    <property name="styleSheet">
+     <string notr="true">color: rgb(165, 29, 45);
+font: 75 italic 20pt &quot;Classic Console&quot;;</string>
+    </property>
+    <property name="text">
+     <string/>
+    </property>
+   </widget>
+   <widget class="QLabel" name="label_5">
+    <property name="geometry">
+     <rect>
+      <x>1030</x>
+      <y>120</y>
+      <width>71</width>
+      <height>31</height>
+     </rect>
+    </property>
+    <property name="text">
+     <string>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;&lt;span style=&quot; font-size:18pt; font-weight:700;&quot;&gt;Logs&lt;/span&gt;&lt;/p&gt;&lt;p&gt;&lt;br/&gt;&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</string>
+    </property>
+   </widget>
+   <widget class="QTableWidget" name="portServicef">
+    <property name="geometry">
+     <rect>
+      <x>0</x>
+      <y>140</y>
+      <width>1021</width>
+      <height>791</height>
+     </rect>
+    </property>
+    <property name="sizePolicy">
+     <sizepolicy hsizetype="Expanding" vsizetype="Expanding">
+      <horstretch>0</horstretch>
+      <verstretch>0</verstretch>
+     </sizepolicy>
+    </property>
+    <property name="autoFillBackground">
+     <bool>false</bool>
+    </property>
+    <property name="styleSheet">
+     <string notr="true">QHeaderView::section {
+    padding: 4px;
+    text-align: left; /* This often does not work as expected in Qt */
+}
+</string>
+    </property>
+    <property name="frameShape">
+     <enum>QFrame::Box</enum>
+    </property>
+    <property name="lineWidth">
+     <number>1</number>
+    </property>
+    <property name="midLineWidth">
+     <number>0</number>
+    </property>
+    <property name="verticalScrollBarPolicy">
+     <enum>Qt::ScrollBarAlwaysOn</enum>
+    </property>
+    <property name="horizontalScrollBarPolicy">
+     <enum>Qt::ScrollBarAlwaysOn</enum>
+    </property>
+    <property name="sizeAdjustPolicy">
+     <enum>QAbstractScrollArea::AdjustToContents</enum>
+    </property>
+    <property name="selectionMode">
+     <enum>QAbstractItemView::SingleSelection</enum>
+    </property>
+    <property name="selectionBehavior">
+     <enum>QAbstractItemView::SelectRows</enum>
+    </property>
+    <property name="verticalScrollMode">
+     <enum>QAbstractItemView::ScrollPerPixel</enum>
+    </property>
+    <property name="horizontalScrollMode">
+     <enum>QAbstractItemView::ScrollPerPixel</enum>
+    </property>
+    <property name="showGrid">
+     <bool>true</bool>
+    </property>
+    <property name="gridStyle">
+     <enum>Qt::SolidLine</enum>
+    </property>
+    <property name="sortingEnabled">
+     <bool>true</bool>
+    </property>
+    <property name="wordWrap">
+     <bool>false</bool>
+    </property>
+    <property name="cornerButtonEnabled">
+     <bool>true</bool>
+    </property>
+    <property name="rowCount">
+     <number>25</number>
+    </property>
+    <attribute name="horizontalHeaderCascadingSectionResizes">
+     <bool>false</bool>
+    </attribute>
+    <attribute name="horizontalHeaderDefaultSectionSize">
+     <number>248</number>
+    </attribute>
+    <attribute name="horizontalHeaderStretchLastSection">
+     <bool>true</bool>
+    </attribute>
+    <attribute name="verticalHeaderCascadingSectionResizes">
+     <bool>true</bool>
+    </attribute>
+    <row>
+     <property name="text">
+      <string>1</string>
+     </property>
+    </row>
+    <row>
+     <property name="text">
+      <string>2</string>
+     </property>
+    </row>
+    <row>
+     <property name="text">
+      <string>3</string>
+     </property>
+    </row>
+    <row>
+     <property name="text">
+      <string>4</string>
+     </property>
+    </row>
+    <row>
+     <property name="text">
+      <string>5</string>
+     </property>
+    </row>
+    <row>
+     <property name="text">
+      <string>6</string>
+     </property>
+    </row>
+    <row>
+     <property name="text">
+      <string>7</string>
+     </property>
+    </row>
+    <row>
+     <property name="text">
+      <string>8</string>
+     </property>
+    </row>
+    <row>
+     <property name="text">
+      <string>9</string>
+     </property>
+    </row>
+    <row>
+     <property name="text">
+      <string>10</string>
+     </property>
+    </row>
+    <row/>
+    <row/>
+    <row/>
+    <row/>
+    <row/>
+    <row/>
+    <row/>
+    <row/>
+    <row/>
+    <row/>
+    <row/>
+    <row/>
+    <row/>
+    <row/>
+    <row/>
+    <column>
+     <property name="text">
+      <string>port</string>
+     </property>
+    </column>
+    <column>
+     <property name="text">
+      <string>service</string>
+     </property>
+    </column>
+    <column>
+     <property name="text">
+      <string>extra info</string>
+     </property>
+    </column>
+   </widget>
+   <widget class="QLabel" name="label_6">
+    <property name="geometry">
+     <rect>
+      <x>4</x>
+      <y>105</y>
+      <width>171</width>
+      <height>31</height>
+     </rect>
+    </property>
+    <property name="font">
+     <font>
+      <pointsize>15</pointsize>
+      <bold>true</bold>
+     </font>
+    </property>
+    <property name="text">
+     <string>Ports &amp; Services</string>
+    </property>
+   </widget>
+   <widget class="QPushButton" name="new_p">
+    <property name="geometry">
+     <rect>
+      <x>1323</x>
+      <y>73</y>
+      <width>171</width>
+      <height>60</height>
+     </rect>
+    </property>
+    <property name="font">
+     <font>
+      <pointsize>13</pointsize>
+      <italic>false</italic>
+      <bold>false</bold>
+      <kerning>false</kerning>
+     </font>
+    </property>
+    <property name="text">
+     <string>New project Folder</string>
+    </property>
+    <property name="default">
+     <bool>false</bool>
+    </property>
+   </widget>
+   <widget class="QPushButton" name="run_nikto">
+    <property name="geometry">
+     <rect>
+      <x>779</x>
+      <y>8</y>
+      <width>100</width>
+      <height>45</height>
+     </rect>
+    </property>
+    <property name="maximumSize">
+     <size>
+      <width>16777215</width>
+      <height>16777215</height>
+     </size>
+    </property>
+    <property name="font">
+     <font>
+      <pointsize>10</pointsize>
+      <italic>false</italic>
+      <bold>true</bold>
+      <kerning>true</kerning>
+     </font>
+    </property>
+    <property name="focusPolicy">
+     <enum>Qt::StrongFocus</enum>
+    </property>
+    <property name="styleSheet">
+     <string notr="true">background-color: rgb(205, 171, 143);</string>
+    </property>
+    <property name="text">
+     <string>NIKTO</string>
+    </property>
+    <property name="default">
+     <bool>false</bool>
+    </property>
+   </widget>
+   <widget class="QPushButton" name="run_gbuster">
+    <property name="geometry">
+     <rect>
+      <x>884</x>
+      <y>8</y>
+      <width>100</width>
+      <height>45</height>
+     </rect>
+    </property>
+    <property name="maximumSize">
+     <size>
+      <width>16777215</width>
+      <height>16777215</height>
+     </size>
+    </property>
+    <property name="font">
+     <font>
+      <pointsize>10</pointsize>
+      <italic>false</italic>
+      <bold>true</bold>
+      <kerning>true</kerning>
+     </font>
+    </property>
+    <property name="focusPolicy">
+     <enum>Qt::StrongFocus</enum>
+    </property>
+    <property name="styleSheet">
+     <string notr="true">background-color: rgb(153, 193, 241);</string>
+    </property>
+    <property name="text">
+     <string>GOBUSTER</string>
+    </property>
+    <property name="default">
+     <bool>false</bool>
+    </property>
+   </widget>
+   <widget class="QPushButton" name="run_dirsearch">
+    <property name="geometry">
+     <rect>
+      <x>990</x>
+      <y>8</y>
+      <width>100</width>
+      <height>45</height>
+     </rect>
+    </property>
+    <property name="maximumSize">
+     <size>
+      <width>16777215</width>
+      <height>16777215</height>
+     </size>
+    </property>
+    <property name="font">
+     <font>
+      <pointsize>10</pointsize>
+      <italic>false</italic>
+      <bold>true</bold>
+      <kerning>true</kerning>
+     </font>
+    </property>
+    <property name="focusPolicy">
+     <enum>Qt::StrongFocus</enum>
+    </property>
+    <property name="styleSheet">
+     <string notr="true">background-color: rgb(97, 227, 227);</string>
+    </property>
+    <property name="text">
+     <string>DIRSEARCH</string>
+    </property>
+    <property name="default">
+     <bool>false</bool>
+    </property>
+   </widget>
+   <widget class="QPushButton" name="run_enum">
+    <property name="geometry">
+     <rect>
+      <x>672</x>
+      <y>57</y>
+      <width>100</width>
+      <height>45</height>
+     </rect>
+    </property>
+    <property name="maximumSize">
+     <size>
+      <width>16777215</width>
+      <height>16777215</height>
+     </size>
+    </property>
+    <property name="font">
+     <font>
+      <pointsize>10</pointsize>
+      <italic>false</italic>
+      <bold>true</bold>
+      <kerning>true</kerning>
+     </font>
+    </property>
+    <property name="focusPolicy">
+     <enum>Qt::StrongFocus</enum>
+    </property>
+    <property name="styleSheet">
+     <string notr="true">background-color: rgb(187, 91, 116);</string>
+    </property>
+    <property name="text">
+     <string>ENUM4LINUX</string>
+    </property>
+    <property name="default">
+     <bool>false</bool>
+    </property>
+   </widget>
+   <widget class="QPushButton" name="run_wpscan">
+    <property name="geometry">
+     <rect>
+      <x>779</x>
+      <y>57</y>
+      <width>100</width>
+      <height>45</height>
+     </rect>
+    </property>
+    <property name="maximumSize">
+     <size>
+      <width>16777215</width>
+      <height>16777215</height>
+     </size>
+    </property>
+    <property name="font">
+     <font>
+      <pointsize>10</pointsize>
+      <italic>false</italic>
+      <bold>true</bold>
+      <kerning>true</kerning>
+     </font>
+    </property>
+    <property name="focusPolicy">
+     <enum>Qt::StrongFocus</enum>
+    </property>
+    <property name="styleSheet">
+     <string notr="true">background-color: rgb(220, 138, 221);</string>
+    </property>
+    <property name="text">
+     <string>WPSCAN</string>
+    </property>
+    <property name="default">
+     <bool>false</bool>
+    </property>
+   </widget>
+   <widget class="QPushButton" name="run_sqlmap">
+    <property name="geometry">
+     <rect>
+      <x>884</x>
+      <y>57</y>
+      <width>100</width>
+      <height>45</height>
+     </rect>
+    </property>
+    <property name="maximumSize">
+     <size>
+      <width>16777215</width>
+      <height>16777215</height>
+     </size>
+    </property>
+    <property name="font">
+     <font>
+      <pointsize>10</pointsize>
+      <italic>false</italic>
+      <bold>true</bold>
+      <kerning>true</kerning>
+     </font>
+    </property>
+    <property name="focusPolicy">
+     <enum>Qt::StrongFocus</enum>
+    </property>
+    <property name="styleSheet">
+     <string notr="true">background-color: rgb(101, 136, 99);</string>
+    </property>
+    <property name="text">
+     <string>SQLMAP</string>
+    </property>
+    <property name="default">
+     <bool>false</bool>
+    </property>
+   </widget>
+   <widget class="QPushButton" name="openfile">
+    <property name="geometry">
+     <rect>
+      <x>989</x>
+      <y>56</y>
+      <width>101</width>
+      <height>31</height>
+     </rect>
+    </property>
+    <property name="styleSheet">
+     <string notr="true">background-color: rgb(101, 136, 99);</string>
+    </property>
+    <property name="text">
+     <string>file-sqlmap</string>
+    </property>
+   </widget>
+   <widget class="QLineEdit" name="lineEdit">
+    <property name="geometry">
+     <rect>
+      <x>990</x>
+      <y>90</y>
+      <width>281</width>
+      <height>26</height>
+     </rect>
+    </property>
+    <property name="text">
+     <string/>
+    </property>
+   </widget>
+   <widget class="QRadioButton" name="radio_file">
+    <property name="geometry">
+     <rect>
+      <x>940</x>
+      <y>110</y>
+      <width>51</width>
+      <height>24</height>
+     </rect>
+    </property>
+    <property name="text">
+     <string>file</string>
+    </property>
+    <attribute name="buttonGroup">
+     <string notr="true">buttonGroup</string>
+    </attribute>
+   </widget>
+   <widget class="QRadioButton" name="radio_url">
+    <property name="geometry">
+     <rect>
+      <x>893</x>
+      <y>109</y>
+      <width>41</width>
+      <height>24</height>
+     </rect>
+    </property>
+    <property name="text">
+     <string>url</string>
+    </property>
+    <attribute name="buttonGroup">
+     <string notr="true">buttonGroup</string>
+    </attribute>
+   </widget>
+  </widget>
+  <widget class="QStatusBar" name="statusbar"/>
+ </widget>
+ <resources/>
+ <connections/>
+ <buttongroups>
+  <buttongroup name="buttonGroup"/>
+ </buttongroups>
+</ui>
