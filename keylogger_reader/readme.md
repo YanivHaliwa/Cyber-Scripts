@@ -3,9 +3,6 @@
 
 A Python-based keylogger for monitoring keystrokes and capturing the active window title on Linux systems. This tool listening to keystrokes and tracking the active window.
 
-**for more scripts related cyber and securiy check here: [Cyber Security Scripts section](https://github.com/YanivHaliwa/Linux-Stuff/blob/master/readme.md#cyber-security-scripts).**
-
-
 ## ⚠️ Disclaimer
 
 **This tool is intended for educational purposes only. 
