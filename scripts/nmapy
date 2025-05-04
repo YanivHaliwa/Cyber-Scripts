@@ -4,6 +4,11 @@ import sys
 import re
 from datetime import datetime
 import socket
+import glob
+from xml.etree import ElementTree as ET
+import os 
+import argparse
+
 
 global fulls  
 fulls=[]
@@ -88,6 +93,8 @@ def run_nmap_detailed_per_port(ip, ports):
         print(f"\033[35mScanning port {port}\033[0m")
         # Base nmap command
         cmd = ["sudo", "nmap", "-Pn", "-sC", "-A", "-sV", "-T4", "-p", port, ip]
+        cmd.extend(["-oX", f"nmap_{ip}_{port}.xml"])
+        cmd.extend(["--script", "vulners,exploit"])
 
         if any(x in port.lower() for x in smb_related):
             cmd.extend(["--script=smb-enum-shares.nse,smb-enum-users.nse"])
@@ -103,6 +110,9 @@ def run_nmap_detailed_per_port(ip, ports):
         
         try:
             result = subprocess.run(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
+        except Exception as e:
+            print(f"Error running nmap: {e}")
+            sys.exit(1)
         except KeyboardInterrupt:
             print("\rexiting...")
             sys.exit(0)
@@ -118,7 +128,47 @@ def resolve_to_ip(domain):
         return socket.gethostbyname(domain)
     except socket.gaierror:
         return domain  # Return the original if it's already an IP or couldn't be resolved
+def create_combine_xml():
+        files = sorted(glob.glob("nmap_*.xml"))
+        if not files:
+            print("No Nmap files found.")
+            exit(1)
 
+        # Use the first file as base
+        first_tree = ET.parse(files[0])
+        first_root = first_tree.getroot()
+
+        # Remove existing <host> and <runstats>
+        for elem in first_root.findall("host"):
+            first_root.remove(elem)
+        for elem in first_root.findall("runstats"):
+            first_root.remove(elem)
+
+        # Append <host> from all files
+        for f in files:
+            tree = ET.parse(f)
+            root = tree.getroot()
+            for host in root.findall("host"):
+                first_root.append(host)
+
+        # Append the last runstats block
+        last_tree = ET.parse(files[-1])
+        last_root = last_tree.getroot()
+        runstats = last_root.find("runstats")
+        if runstats is not None:
+            first_root.append(runstats)
+
+        # Final XML string
+        xml_string = ET.tostring(first_root, encoding="unicode")
+
+        # Build proper headers
+        final_output = """<?xml version="1.0" encoding="UTF-8"?>
+        <!DOCTYPE nmaprun>
+        <?xml-stylesheet href="file:///usr/share/nmap/nmap.xsl" type="text/xsl"?>
+        """ + xml_string
+        return files, final_output
+    
+        
 if __name__ == "__main__":
     port_option, original_arg = parse_arguments()
 
@@ -154,12 +204,32 @@ if __name__ == "__main__":
     # Combine initial and detailed output
     combined_output = f"{initial_output}\n{detailed_output}"
     
+   
+    
     # Save combined output to file
     current_timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
-    file_name = f"nmap_result_{ip}_{current_timestamp}.txt"
-    print_bold(f"\nWriting results to file: {file_name}", "1;32")
+        
+    # save in txt file 
+    file_name = f"nmapTXT_{ip}_{current_timestamp}.txt"
+    print_bold(f"\ntxt file - {file_name}", "1;32")
     with open(file_name, "a") as f:
         f.write(combined_output)
     
+    files, final_output = create_combine_xml()
+    # Save to file
+    file_xml= f"nmapXML_{ip}_{current_timestamp}.xml"
+    with open(file_xml, "w") as f:
+        f.write(final_output)
+    print_bold(f"\nxml file - {file_xml}", "1;32")
+            
+    # Remove all nmap_*.xml files except the final merged one
+    for f in files:
+        if "nmap_merged_for_msf.xml" not in f:
+            try:
+                os.remove(f)
+                #   print(f"🗑️ Deleted: {f}")
+            except Exception as e:
+                print(f"⚠️ Could not delete {f}: {e}")
+                    
     print(f"\nend scan time: ", get_time())
 

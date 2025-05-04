@@ -22,10 +22,27 @@ This versatile tool combines powerful search capabilities with customizable opti
 - **Colored Output**: Uses color-coded console output for better readability.
 - **JSON Configuration**: Supports loading search parameters from a JSON file.
 
+
+### Installation
+
+you can clone ONLY this folder if you run this command: 
+
+```bash
+git clone --filter=blob:none --no-checkout https://github.com/YanivHaliwa/Cyber-Stuff.git && cd Cyber-Stuff && git sparse-checkout init --cone && git sparse-checkout set pass_finder  && git checkout
+```
+
+OR you can Clone the repository using the following command:
+
+```bash
+git clone https://github.com/YanivHaliwa/Cyber-Stuff.git
+cd Cyber-Stuff/pass_finder
+```
+
 ## Usage
 ```
 passf <target_folder> [options]
 ```
+
 ### Options
 
 - `-g`, `--grep-length`: Set the context length around found keywords (default: 5).

@@ -1,0 +1,29 @@
+#!/bin/bash
+
+current_directory="$PWD"
+
+if [ "$#" -eq 0 ] || [ "$1" == "-h" ]; then
+  echo "Usage: $0 <target_url> <wordlist>"
+  echo "  target_url: The URL you want to run gobuster on."
+  echo "  wordlist: The wordlist file you want to use with gobuster."
+  exit 1
+fi
+
+target_url=$1
+domain=$(echo $1 | sed 's,^https\?://,,;s,www\.,,;s,/.*,,;')
+ip=$(getent hosts $domain | awk '{ print $1 }')
+
+dics=$2
+sanitized_url=${target_url//http:\/\//}
+sanitized_url=${sanitized_url////_}
+sanitized_url=${sanitized_url//:/_}
+
+resultfile="$current_directory/gobuster_result_$ip.txt"
+touch $resultfile
+
+
+echo ""
+echo ""
+echo "Starting gobuster on $domain (IP: $ip) with wordlist $dics..."
+
+gobuster dir -u $target_url -w $2 -t 100 -s 200,301,302,403,401,500 --status-codes-blacklist "" | tee -a $resultfile 

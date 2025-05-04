@@ -68,7 +68,8 @@ def find_service(port_get):
         unique_services = set(service_details[0] for service_details in matching_services)
         for service in unique_services:
           #  print(f"Service: {service}, Port: {port_get}")
-            print(f"Port: {port_get}, Service: {service}", check_web_service(ip, port_get))
+            web_service = check_web_service(ip, port_get)
+            print(f"Port: {port_get:<6} Service: {service:<3}{web_service}")
   
   
 def print_help():
@@ -144,9 +145,14 @@ if open_ports:
   print("\033[1;35m\n\nFinal list of open ports:\033[0m")
   op = sorted(set(open_ports))
   po=""
+  first=True
+  comma=""
   for p in op:
+     if first != True:
+        comma=","
      find_service(str(p))
-     po=po+str(p)+","
+     po=po+comma+str(p)
+     first=False
   print("\n\n\033[1;35mPorts: \033[0m"+po)
      
 

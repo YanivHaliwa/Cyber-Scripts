@@ -22,6 +22,7 @@ Use this software responsibly and only on systems where you have permission. Mis
 
 ## Installation
 
+
 ### Prerequisites
 
 - **Python 3.x**
@@ -41,13 +42,19 @@ Use this software responsibly and only on systems where you have permission. Mis
   pip install python-xlib
   ```
 
-### Clone the Repository
+### Installation
 
-Clone the repository using the following command:
+you can clone ONLY this folder if you run this command: 
 
 ```bash
-git clone https://github.com/YanivHaliwa/keylogger_reader.git
-cd keylogger_reader
+git clone --filter=blob:none --no-checkout https://github.com/YanivHaliwa/Cyber-Stuff.git && cd Cyber-Stuff && git sparse-checkout init --cone && git sparse-checkout set keylogger_reader  && git checkout
+```
+
+OR you can Clone the repository using the following command:
+
+```bash
+git clone https://github.com/YanivHaliwa/Cyber-Stuff.git
+cd  Cyber-Stuff/keylogger_reader
 ```
 
 ## Usage
@@ -78,14 +85,6 @@ To continuously monitor the keylogger output file remotely over SSH, use the fol
 ```bash
 ssh user@remote_host "tail -f /path/to/log_file.txt"
 ```
-
-## Example Output
-
-![Example Output file [formatted]](https://github.com/YanivHaliwa/keylogger_reader/blob/master/example_output.png)
- 
-- Window changes are logged as `[Window Title] - ` the first time you switch to a new window.
-- Special keys are logged in square brackets, e.g., `[ENTER]`, `[ESC]`.
-- Modifier key combinations are logged as `[CTRL+SHIFT+A]`.
 
 ## ⚠️ Security Note
 

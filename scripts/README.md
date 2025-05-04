@@ -22,6 +22,22 @@
 - **vtu**: A Bash script for scanning URLs using VirusTotal's API.
 - **webscan_sub**: Scans websites for subdomains and folders visible in HTML code using BeautifulSoup.
 
+
+### Installation
+
+you can clone ONLY this folder if you run this command: 
+
+```bash
+git clone --filter=blob:none --no-checkout https://github.com/YanivHaliwa/Cyber-Stuff.git && cd Cyber-Stuff && git sparse-checkout init --cone && git sparse-checkout set scripts  && git checkout
+```
+
+OR you can Clone the repository using the following command:
+
+```bash
+git clone https://github.com/YanivHaliwa/Cyber-Stuff.git
+cd Cyber-Stuff/scripts
+```
+
 ## Author
 
 Created by [Yaniv Haliwa](https://github.com/YanivHaliwa) for security testing and educational purposes.

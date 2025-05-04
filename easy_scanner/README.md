@@ -71,7 +71,20 @@ EasyScanner uses intelligent service detection to automatically apply specialize
 
 ### Installation
 
-1. Clone the repository
+1. you can clone ONLY this folder if you run this command: 
+
+```bash
+git clone --filter=blob:none --no-checkout https://github.com/YanivHaliwa/Cyber-Stuff.git && cd Cyber-Stuff && git sparse-checkout init --cone && git sparse-checkout set easy_scanner  && git checkout
+```
+
+OR you can Clone the repository using the following command:
+
+```bash
+git clone https://github.com/YanivHaliwa/Cyber-Stuff.git
+cd Cyber-Stuff/easy_scanner
+```
+
+
 2. Install Python dependencies:
    ```bash
    pip install -r requirements.txt

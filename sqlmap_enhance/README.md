@@ -42,10 +42,18 @@ This script streamlines SQLMap usage for security professionals by:
 
 ## Installation
 
-1. Clone the repository:
-   ```bash
-   git clone https://github.com/YanivHaliwa/Cyber-Stuff.git
-   ```
+1.  you can clone ONLY this folder if you run this command: 
+
+```bash
+git clone --filter=blob:none --no-checkout https://github.com/YanivHaliwa/Cyber-Stuff.git && cd Cyber-Stuff && git sparse-checkout init --cone && git sparse-checkout set sqlmap_enhance  && git checkout
+```
+
+OR you can Clone the repository using the following command:
+
+```bash
+git clone https://github.com/YanivHaliwa/Cyber-Stuff.git
+cd Cyber-Stuff/sqlmap_enhance
+```
 
 2. Navigate to the SQLMap enhance directory:
    ```bash
@@ -54,8 +62,9 @@ This script streamlines SQLMap usage for security professionals by:
 
 3. Make the script executable:
    ```bash
-   chmod +x sqlm
+   chmod +x sqlmLite sqlmPro sqlway
    ```
+ 
 
 4. Ensure you have SQLMap installed:
    ```bash
