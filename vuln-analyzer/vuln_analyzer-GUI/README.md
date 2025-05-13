@@ -27,9 +27,24 @@ An advanced security analysis tool for penetration testers that leverages AI to 
 ### Using Docker (Recommended)
 
 ```bash
-# Clone the repository
-git clone https://github.com/YanivHaliwa/pentester-analysis-tool.git
-cd pentester-analysis-tool
+
+you can clone ONLY this folder if you run this command: 
+
+```bash
+git clone --filter=blob:none --no-checkout https://github.com/YanivHaliwa/Cyber-Stuff.git && cd Cyber-Stuff && git sparse-checkout init --cone && git sparse-checkout set vuln-analyzer  && git checkout
+```
+
+OR you can Clone the repository using the following command:
+
+```bash
+git clone https://github.com/YanivHaliwa/Cyber-Stuff.git
+```
+
+then
+```bash
+cd Cyber-Stuff/vuln-analyzer/vuln_analyzer-CLI
+```
+
 
 # Configure your .env file
 cp .env.example .env
