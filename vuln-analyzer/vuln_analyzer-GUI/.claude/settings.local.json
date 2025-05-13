@@ -1,0 +1,25 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(ls:*)",
+      "Bash(ls:*)",
+      "Bash(rm:*)",
+      "Bash(rm:*)",
+      "Bash(mv:*)",
+      "Bash(mv:*)",
+      "Bash(cat:*)",
+      "Bash(cat:*)",
+      "Bash(grep:*)",
+      "Bash(grep:*)",
+      "Bash(sed:*)",
+      "Bash(sed:*)",
+      "Bash(python3:*)",
+      "Bash(python3:*)",
+      "Bash(python:*)",
+      "Bash(mkdir:*)",
+      "Bash(./run.sh:*)",
+      "Bash(FLASK_APP=app.py FLASK_ENV=development flask run --port=5001)"
+    ],
+    "deny": []
+  }
+}
