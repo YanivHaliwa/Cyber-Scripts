@@ -1,7 +1,27 @@
 #!/bin/bash
 
-# using my other script sqlma with waybachurls
+###############################################################################
+# SQLWay - Automated SQL Injection Target Discovery and Testing
+# 
+# Description:
+#   This script automates the discovery of potential SQL injection points by:
+#   1. Using Wayback Machine to find historical URLs of a target domain
+#   2. Filtering for URLs with parameters that may be vulnerable to SQL injection
+#   3. Running sqlmap against the discovered potential targets
+#
+# Usage: 
+#   sqlway <target_url>
+#
+# Example: 
+#   sqlway example.com
+#
+# Dependencies:
+#   - waybackurls (for URL discovery)
+#   - sqlma (custom wrapper for sqlmap)
+#   - grep, sed (for URL filtering)
+###############################################################################
 
+# Check if a target URL was provided
 if [ -z "$1" ]; then
     echo "Usage: $0 <target_url>"
     exit 1
@@ -11,18 +31,31 @@ TARGET="$1"
 
 echo "Starting URL extraction from $TARGET..."
 
+# Phase 1: URL Discovery
+# Fetch historical URLs from Wayback Machine for the target domain
 waybackurls "$TARGET" >> urls.txt
 
+# Phase 2: URL Filtering
+# Filter for URLs that contain parameters (contain equals sign)
 grep -E '\bhttps?://\S+?=\S+' urls.txt > param_urls.txt
 
+# Filter for dynamic pages that are more likely to be vulnerable (.php, .asp)
 grep -E '\.php|\.asp' param_urls.txt > dynamic_param_urls.txt
 
+# Phase 3: URL Standardization
+# Normalize URLs by removing parameter values (turning example.php?id=123 into example.php?id=)
+# This helps with deduplication and simplifies testing
 sed 's/\(=[^&]*\)/=/g' dynamic_param_urls.txt > cleaned_urls.txt
 
+# Remove duplicates to avoid testing the same endpoint multiple times
 sort -u cleaned_urls.txt -o final_urls.txt
 
+# Phase 4: Cleanup
+# Remove temporary files to keep the workspace clean
 rm -f urls.txt param_urls.txt dynamic_param_urls.txt cleaned_urls.txt
 
+# Phase 5: User Interaction
+# Inform the user about the results and ask for confirmation before proceeding
 echo "Found $(wc -l < final_urls.txt) potential SQL injection targets."
 read -p "Do you want to proceed with sqlmap scanning? (y/n): " confirm
 
@@ -33,6 +66,13 @@ fi
 
 echo "Starting sqlmap scan..."
 
-cat final_urls.txt | xargs -I{} sqlma -reg -u "{}"
+# Phase 6: Vulnerability Testing
+# For each discovered URL, run the custom sqlma script with regular settings
+# The -reg flag is presumably a custom configuration for standard SQL injection tests
+cat final_urls.txt | xargs -I{} sqlmLite -reg -u "{}"
+
+# Script complete
+echo "SQLWay scan completed. Check for identified SQL injection vulnerabilities above."
+# Leave the final_urls.txt file for reference
 
 
