@@ -61,8 +61,22 @@ passf <target_folder> [options]
 }
 ```
 
+## Additional Utility: susfiles
+
+The `susfiles` script is included in this folder to help you quickly identify files on your machine that may be considered suspicious or potentially sensitive. This tool is useful for:
+
+- Locating files with names or extensions commonly associated with credentials, secrets, or other sensitive data
+- Quickly auditing a system for files that may require further investigation
+
+**Usage:**
+
+```bash
+./susfiles <target_folder>
+```
+
+This script is designed to complement the main password/content search tool by providing a fast way to surface files that warrant closer inspection.
+
 ## Author
 
 Created by [Yaniv Haliwa](https://github.com/YanivHaliwa) for security testing and educational purposes.
 
- 
