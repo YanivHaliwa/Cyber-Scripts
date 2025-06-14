@@ -1,5 +1,0 @@
-PyGObject
-gi
-pycairo
-python-dateutil
-concurrent-futures

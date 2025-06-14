@@ -1,70 +1,72 @@
-# Cyber-Stuff: Cybersecurity Toolkit Collection
 
-A comprehensive collection of cybersecurity tools and utilities for security professionals, penetration testers, and ethical hackers. This repository contains various tools focused on different aspects of cybersecurity testing and analysis.
+# Cyber-Stuff: Cybersecurity Scripts Collection
 
-## Available Tools
+A focused collection of cybersecurity scripts and utilities for security professionals, penetration testers, and ethical hackers. This repository contains standalone tools for encoding/decoding, hash analysis, password cracking, network scanning, and more.
 
-### [Easy Scanner](./easy_scanner/)
+## Scripts Overview
 
-A GUI-based network security scanner with support for multiple scanning tools including nmap, nikto, gobuster, dirsearch, enum4linux, wpscan, and sqlmap. Features intelligent service detection with targeted scanning and automatic output organization.
+**decode**: Multi-format decoding tool (base64, URL, HTML, etc.)
 
-### [GoBuster Enhance](./gobuster_enhance/)
+**dir_finder**: Asynchronous directory discovery for web servers.
 
-A Python wrapper that enhances the Gobuster tool with configuration management and improved user experience, making web directory discovery and DNS enumeration faster and more efficient.
+**encode**: Multi-format encoding and hash utility.
 
-### [SQLMap Enhance](./sqlmap_enhance/)
+**getlink**: Extracts all links from a given webpage.
 
-A powerful bash script that enhances and automates SQLMap operations for SQL injection testing with advanced output processing and data organization.
+**gtfbin**: Checks binaries against GTFOBins for privilege escalation vectors.
 
-### [Exploit Search](./exploit_search/)
+**haid**: Hash analysis and identification using hash_mode.txt reference.
 
-A command-line tool that searches for exploits and vulnerability information across multiple security databases including ExploitDB (via searchsploit), Metasploit Framework modules, AttackerKB, and National Vulnerability Database (NVD).
+**hashc**: Bash wrapper for Hashcat (crack hashes with wordlists).
 
-### [Brute WiFi](./brute_wifi/)
+**hashline**: Python script for processing and joining hash files.
 
-A lightweight Python-based GUI application to scan WiFi networks for common default passwords, intended for legitimate security testing of networks.
+**johng**: Crack GPG-encrypted files using John the Ripper.
 
-### [Devices Finder](./devices_finder/)
+**johnp**: Crack hashes with John the Ripper (custom format/wordlist).
 
-A network device discovery tool that uses ARP scanning to identify devices on your local network, capturing MAC addresses, IP addresses, and hostnames.
+**johns**: Crack SSH private keys with John the Ripper.
 
-### [Keylogger Reader](./keylogger_reader/)
+**johnw**: Crack Linux shadow file passwords with John the Ripper.
 
-A Python-based keylogger for monitoring keystrokes and capturing the active window title on Linux systems, designed for educational purposes only.
+**johnz**: Crack ZIP file passwords with John the Ripper.
 
-### [Pass Finder](./pass_finder/)
+**mvenom**: Metasploit msfvenom payload generator (Python).
 
-An advanced file content search tool designed for searching sensitive information within files, particularly useful for cybersecurity professionals and system administrators.
+**nmapy**: Automated Nmap scanning and report tool.
 
-### [Vuln-Analyzer](./vuln-analyzer/)
+**portf**: Port scanner and service detector.
 
-A comprehensive vulnerability analysis toolkit for processing and analyzing Nmap scan outputs, searching for CVEs, and generating detailed vulnerability reports.
+**soclisten**: Socat-based listener setup (Python wrapper).
 
-#### [CLI Version](./vuln-analyzer/vuln_analyzer-CLI/)
+**socremote**: Socat-based remote connection (Python wrapper).
 
-Command-line tool that analyzes Nmap XML outputs, extracts vulnerabilities, and generates detailed reports with CVE information using standard or Vulners API lookups.
+**vtf**: VirusTotal file scanner (Bash, uses vtcli).
 
-#### [GUI Version](./vuln-analyzer/vuln_analyzer-GUI/)
+**vtu**: VirusTotal URL scanner (Bash, uses vtcli).
 
-Web interface with cybersecurity-themed UI that uses AI to analyze scan data, categorize vulnerabilities, and provide exploitation guidance from various security tool outputs.
+**webscan_sub**: Scans for subdomains and folders in HTML (BeautifulSoup).
 
-### [Scripts](./scripts/)
+**hash_mode.txt**: Reference file for hash types and modes (used by haid).
 
-A collection of various cybersecurity-related scripts including:
+Scripts are located in the root and `scripts/` subfolder. All are standalone and can be used independently.
 
-- **decode/encode**: Tools for various encoding formats
-- **dir_finder**: Asynchronous directory discovery tool
-- **getlink**: Web scraper for extracting links
-- **gtfbin**: Checks binaries against GTFOBins
-- **haid**: Hash analysis and identification tool
-- **hash** tools: Various scripts for hash cracking and analysis
-- **john** tools: John the Ripper wrappers for different file types
-- **mvenom**: Metasploit payload generator
-- **nmapy**: Automated Nmap scanning tool
-- **portf**: Port scanning and service detection
-- **soc** tools: Socat wrappers for networking
-- **vt** tools: VirusTotal API integration
-- **webscan_sub**: Subdomain and folder scanner
+## Installation & Usage
+
+Clone this folder only:
+
+```bash
+git clone --filter=blob:none --no-checkout https://github.com/YanivHaliwa/Cyber-Stuff.git && cd Cyber-Stuff && git sparse-checkout init --cone && git sparse-checkout set scripts  && git checkout
+```
+
+Or clone the full repository:
+
+```bash
+git clone https://github.com/YanivHaliwa/Cyber-Stuff.git
+cd Cyber-Stuff/scripts
+```
+
+Most scripts require Python 3 and some require additional packages (see script headers for requirements). Bash scripts require standard Linux tools and John the Ripper/Hashcat for password cracking.
 
 ## Legal Disclaimer
 
