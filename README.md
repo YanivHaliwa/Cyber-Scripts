@@ -53,17 +53,11 @@ Scripts are located in the root and `scripts/` subfolder. All are standalone and
 
 ## Installation & Usage
 
-Clone this folder only:
+clone the full repository:
 
 ```bash
-git clone --filter=blob:none --no-checkout https://github.com/YanivHaliwa/Cyber-Stuff.git && cd Cyber-Stuff && git sparse-checkout init --cone && git sparse-checkout set scripts  && git checkout
-```
-
-Or clone the full repository:
-
-```bash
-git clone https://github.com/YanivHaliwa/Cyber-Stuff.git
-cd Cyber-Stuff/scripts
+git clone https://github.com/YanivHaliwa/Cyber-Scripts.git
+cd Cyber-Scripts
 ```
 
 Most scripts require Python 3 and some require additional packages (see script headers for requirements). Bash scripts require standard Linux tools and John the Ripper/Hashcat for password cracking.
