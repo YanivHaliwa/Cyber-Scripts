@@ -13,3 +13,7 @@ polar: # Replace with a single Polar username
 buy_me_a_coffee: # Replace with a single Buy Me a Coffee username
 thanks_dev: # Replace with a single thanks.dev username
 custom: [<iframe src="https://github.com/sponsors/YanivHaliwa/card" title="Sponsor YanivHaliwa" height="225" width="600" style="border: 0;"></iframe>]
+custom: [<a href="https://stars.github.com/nominate/" target="_blank">
+  Nominate YanivHaliwa as a GitHub Star ⭐
+</a>
+]
