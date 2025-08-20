@@ -79,6 +79,26 @@ def analyze_hash(hashfile):
     haiti_output = subprocess.run(haiti_command, capture_output=True, text=True)
     print(haiti_output.stdout)
 
+    # Executing hashcat
+    # print("\n")
+    print(f"{Fore.MAGENTA}Possible hashes from hashcat:{Style.RESET_ALL}")
+    hashcat_id_command = ["hashcat", "--identify", hashfile]
+    hashcat_id_output = subprocess.run(hashcat_id_command, capture_output=True, text=True)
+    if hashcat_id_output.stdout.strip():
+        # Parse and format the output to show only hash names with codes
+        lines = hashcat_id_output.stdout.split('\n')
+        for line in lines:
+            if "|" in line and line.strip() and not "Name" in line and not "====" in line:
+                # Extract hash code and name from table format
+                parts = line.split("|")
+                if len(parts) >= 3:
+                    hash_code = parts[0].strip()
+                    hash_name = parts[1].strip()
+                    if hash_code.isdigit():
+                        print(f"{hash_name} ({hash_code})")
+    else:
+        print("Could not find from hashcat --identify.")
+
 def choose_hash_type(filename, search_term):
     choice = 0
     matching_lines = []
@@ -91,6 +111,22 @@ def choose_hash_type(filename, search_term):
         "sha-1": "sha1",
         "sha-224": "sha2-224",       
     }
+
+    # Check if search term is an exact hashcat code (numeric)
+    if search_term.isdigit():
+        try:
+            with open(filename, 'r') as file:
+                for line in file:
+                    parts = line.split('|')
+                    if len(parts) >= 2 and parts[0].strip() == search_term:
+                        # Found exact hashcat code match
+                        hash_type_code = parts[0].strip()
+                        hash_type = parts[1].strip()
+                        return hash_type_code, hash_type
+        except FileNotFoundError:
+            print("The hash mode file was not found.")
+            return None
+        # If no exact match found for the code, continue with normal search
 
     # Check if the search term has an equivalent and normalize it
     normalized_search = hash_equivalents.get(search_term.lower(), search_term.lower()).replace('-', '')
@@ -127,6 +163,111 @@ def choose_hash_type(filename, search_term):
 
 
  
+
+def auto_detect_hash_type(hashfile):
+    """Auto-detect the most probable hash type from all tools' first results"""
+    try:
+        with open(hashfile, 'r') as file:
+            hash_value = file.read().strip()
+    except FileNotFoundError:
+        return None, None
+    
+    # Count hash type occurrences from all tools and track codes
+    hash_count = {}
+    hash_codes = {}  # Store hashcat codes when available
+    
+    # Get first result from hashid
+    try:
+        hashid_command = ["hashid", hashfile]
+        hashid_output = subprocess.run(hashid_command, capture_output=True, text=True)
+        lines = hashid_output.stdout.split('\n')
+        for line in lines:
+            if line.strip().startswith('[+]'):
+                first_hash = line.replace('[+]', '').strip()
+                hash_count[first_hash] = hash_count.get(first_hash, 0) + 1
+                break
+    except:
+        pass
+    
+    # Get first result from nth (most likely) and extract HC code
+    try:
+        nth_command = ["nth", "-f", hashfile]
+        nth_output = subprocess.run(nth_command, capture_output=True, text=True)
+        start = nth_output.stdout.find("Most Likely")
+        if start != -1:
+            lines = nth_output.stdout[start:].split('\n')
+            for line in lines[1:]:  # Skip "Most Likely" header
+                if line.strip() and not line.strip() == "Most Likely":
+                    first_hash = line.split(',')[0].strip()
+                    if first_hash and "HC:" in line:
+                        # Extract hashcat code from nth
+                        hc_part = line.split("HC:")[1].split()[0].strip()
+                        hash_codes[first_hash] = hc_part
+                        hash_count[first_hash] = hash_count.get(first_hash, 0) + 2  # Weight nth more
+                        break
+    except:
+        pass
+    
+    # Get first result from hash-identifier
+    try:
+        hash_identifier_command = ["hash-identifier"]
+        process = subprocess.Popen(hash_identifier_command, stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
+        output, _ = process.communicate(input=hash_value + '\n', timeout=1)
+        start = output.find("Possible Hashs:")
+        if start != -1:
+            lines = output[start:].split('\n')
+            for line in lines:
+                if line.strip().startswith('[+]'):
+                    first_hash = line.replace('[+]', '').strip()
+                    hash_count[first_hash] = hash_count.get(first_hash, 0) + 1
+                    break
+        if process.poll() is None:
+            process.kill()
+    except:
+        pass
+    
+    # Get first result from haiti and extract HC code
+    try:
+        haiti_command = ["haiti", hash_value]
+        haiti_output = subprocess.run(haiti_command, capture_output=True, text=True)
+        lines = haiti_output.stdout.split('\n')
+        for line in lines:
+            if line.strip() and not line.startswith('haiti'):
+                first_hash = line.split('[')[0].strip()
+                if first_hash and "[HC:" in line:
+                    # Extract hashcat code from haiti
+                    hc_part = line.split("[HC:")[1].split("]")[0].strip()
+                    hash_codes[first_hash] = hc_part
+                    hash_count[first_hash] = hash_count.get(first_hash, 0) + 1
+                    break
+    except:
+        pass
+    
+    # Get first result from hashcat and extract code directly
+    try:
+        hashcat_id_command = ["hashcat", "--identify", hashfile]
+        hashcat_id_output = subprocess.run(hashcat_id_command, capture_output=True, text=True)
+        lines = hashcat_id_output.stdout.split('\n')
+        for line in lines:
+            if "|" in line and line.strip() and not "Name" in line and not "====" in line:
+                parts = line.split("|")
+                if len(parts) >= 3:
+                    hash_code = parts[0].strip()
+                    hash_name = parts[1].strip()
+                    if hash_code.isdigit():
+                        hash_codes[hash_name] = hash_code
+                        hash_count[hash_name] = hash_count.get(hash_name, 0) + 1
+                        break
+    except:
+        pass
+    
+    # Find most common hash type
+    if hash_count:
+        most_probable = max(hash_count, key=hash_count.get)
+        probable_code = hash_codes.get(most_probable, None)
+        return most_probable, probable_code
+    
+    return None, None
 
 def get_hash(hashfile):
     try:
@@ -204,7 +345,27 @@ def main():
             hash_type_code, hash_type = result
         elif args.hashfile:
             analyze_hash(args.hashfile)
-            user_input = input(f"{Fore.CYAN}Enter the hash type name or part of it / or HC code: {Style.RESET_ALL}")
+            
+            # Auto-detect most probable hash type
+            probable_hash, probable_code = auto_detect_hash_type(args.hashfile)
+            if probable_hash:
+                print("\n")
+                if probable_code:
+                    print(f"\n{Fore.RED}{Style.BRIGHT}🎯 Most probable hash type: {probable_hash}{Style.RESET_ALL}")
+                else:
+                    print(f"\n{Fore.RED}{Style.BRIGHT}🎯 Most probable hash type: {probable_hash}{Style.RESET_ALL}")
+                print("\n")
+                user_choice = input(f"{Fore.YELLOW}Do you want to go with this prediction? (y/n): {Style.RESET_ALL}").lower()
+                if user_choice == 'y' or user_choice == 'yes':
+                    # Use the hashcat code if available, otherwise use the hash name
+                    user_input = probable_code if probable_code else probable_hash
+                else:
+                    print("\n")
+                    user_input = input(f"{Fore.CYAN}Enter the hash type name or part of it / or HC code: {Style.RESET_ALL}")
+            else:
+                print("\n")
+                user_input = input(f"{Fore.CYAN}Enter the hash type name or part of it / or HC code: {Style.RESET_ALL}")
+            
             result = choose_hash_type(type_file, user_input)
             if not result:
                 sys.exit(1)

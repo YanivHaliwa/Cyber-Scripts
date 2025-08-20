@@ -22,6 +22,8 @@ import warnings
 from functools import lru_cache
 warnings.filterwarnings('ignore')
 
+#version 26.7.25
+
 # Silent downloads of just what we need
 needed_packages = ['words', 'names']
 for package in needed_packages:
@@ -432,7 +434,15 @@ def print_decoded_output(decoded_str, description, is_english):
     global result, fbase64,typef,fbase85
 
     result=True
-    colored_str = colored(decoded_str, 'yellow')
+    
+    # Safe Unicode handling for terminal output
+    try:
+        colored_str = colored(decoded_str, 'yellow')
+    except UnicodeEncodeError:
+        # Fallback: encode to UTF-8 with error handling
+        safe_str = decoded_str.encode('utf-8', errors='replace').decode('utf-8')
+        colored_str = colored(safe_str, 'yellow')
+    
     guesses, accuracy = guess_encoding(decoded_str)  # Make sure guess_encoding returns both values
 
     # Filter out the current decoding scheme from the guesses
@@ -443,7 +453,16 @@ def print_decoded_output(decoded_str, description, is_english):
             print("\n" + colored(f"{description} Decode:", "green"), colored("--probable--", "red"), flush=True)
         else:
             print("\n" + colored(f"{description} Decode:", "blue"))
-        print(colored_str)
+        
+        # Safe printing with fallback
+        try:
+            print(colored_str)
+        except UnicodeEncodeError:
+            # Show hex representation as fallback
+            hex_repr = ' '.join(f'\\u{ord(c):04x}' for c in decoded_str)
+            print(f"Unicode chars: {hex_repr}")
+            print(f"Raw output: {repr(decoded_str)}")
+            
         if not is_english:
             if filtered_guesses:
                 print(f"try decoding this to: {', '.join(filtered_guesses)} - Accuracy: {accuracy}")
@@ -452,7 +471,13 @@ def print_decoded_output(decoded_str, description, is_english):
     elif args.english:
         if is_english:
             print("\n" + colored(f"{description} Decode:", "green"), colored("--probable--", "red"), flush=True)
-            print(colored_str)
+            try:
+                print(colored_str)
+            except UnicodeEncodeError:
+                # Show hex representation as fallback
+                hex_repr = ' '.join(f'\\u{ord(c):04x}' for c in decoded_str)
+                print(f"Unicode chars: {hex_repr}")
+                print(f"Raw output: {repr(decoded_str)}")
 
 def decode_uu(input_string):
     # Remove 'begin' and 'end' lines and split into lines
@@ -647,9 +672,74 @@ def brute_force_single_byte_xor(ciphertext_str):
         except UnicodeDecodeError:
             continue  # Skip non-UTF-8 results
 def decode_unicode_escape(unicode_string):
-    # Decode the escaped Unicode string into its original form
-    decoded_string = unicode_string.encode('utf-8').decode('unicode_escape')
-    return decoded_string
+    r"""
+    Comprehensive Unicode decoder supporting all variations:
+    - Standard unicode escapes (\uXXXX, \u79\u61\u6e\u69\u76)
+    - UTF-16 surrogate pairs (\uD83C\uDDEE\uD83C\uDDF1)
+    - UTF-32 escapes (\U0001F1EE)
+    - Hex escapes (\xXX)
+    - Python unicode_escape format
+    - Short hex format (\u79 instead of \u0079)
+    """
+    import re
+    
+    try:
+        result = unicode_string
+        
+        # First: Handle UTF-16 surrogate pairs specifically
+        if re.search(r'\\uD[89AB][0-9A-Fa-f]{2}\\u[Dd][C-Fc-f][0-9A-Fa-f]{2}', result):
+            def decode_surrogate_pairs(match):
+                high_surrogate = int(match.group(1), 16)
+                low_surrogate = int(match.group(2), 16)
+                codepoint = 0x10000 + ((high_surrogate & 0x3FF) << 10) + (low_surrogate & 0x3FF)
+                return chr(codepoint)
+            
+            result = re.sub(r'\\u([Dd][89AB][0-9A-Fa-f]{2})\\u([Dd][C-Fc-f][0-9A-Fa-f]{2})', 
+                          decode_surrogate_pairs, result)
+        
+        # Second: Handle UTF-32 escapes (\UXXXXXXXX)
+        if '\\U' in result:
+            result = re.sub(r'\\U([0-9A-Fa-f]{8})', lambda m: chr(int(m.group(1), 16)), result)
+        
+        # Third: Handle standard 4-digit unicode escapes (\uXXXX)
+        if '\\u' in result:
+            result = re.sub(r'\\u([0-9A-Fa-f]{4})', lambda m: chr(int(m.group(1), 16)), result)
+        
+        # Fourth: Handle short unicode escapes (\u79 instead of \u0079) - 1-3 digits
+        if '\\u' in result:
+            result = re.sub(r'\\u([0-9A-Fa-f]{1,3})(?![0-9A-Fa-f])', lambda m: chr(int(m.group(1), 16)), result)
+        
+        # Fifth: Handle hex escapes (\xXX)
+        if '\\x' in result:
+            result = re.sub(r'\\x([0-9A-Fa-f]{2})', lambda m: chr(int(m.group(1), 16)), result)
+        
+        # Sixth: Handle short hex escapes (\x9 instead of \x09)
+        if '\\x' in result:
+            result = re.sub(r'\\x([0-9A-Fa-f]{1})(?![0-9A-Fa-f])', lambda m: chr(int(m.group(1), 16)), result)
+        
+        # Seventh: Handle octal escapes (\777)
+        if '\\' in result and re.search(r'\\[0-7]', result):
+            result = re.sub(r'\\([0-7]{1,3})', lambda m: chr(int(m.group(1), 8)), result)
+        
+        # Eighth: Try Python's built-in unicode_escape as fallback
+        if result == unicode_string:
+            try:
+                result = unicode_string.encode('utf-8').decode('unicode_escape')
+            except:
+                pass
+        
+        # If we got a valid result different from input, return it
+        if result != unicode_string and result:
+            return result
+        else:
+            return None
+            
+    except Exception as e:
+        # Final fallback: Try basic Python unicode_escape
+        try:
+            return unicode_string.encode('utf-8').decode('unicode_escape')
+        except:
+            return None
 
 
 if __name__ == "__main__":
